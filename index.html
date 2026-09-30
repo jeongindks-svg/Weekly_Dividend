@@ -94,9 +94,13 @@ h2{font-size:15px;margin:0 0 10px;font-weight:600;display:flex;justify-content:s
 h2 small{font-weight:400;font-size:12px;color:var(--muted)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid var(--rule)}
 .row:first-of-type{border-top:none}
+.dayhead{font-size:12px;color:var(--muted);padding:10px 0 2px}
+.dayhead.sep{border-top:1px solid var(--rule);margin-top:4px}
+.dayhead + .row{border-top:none}
 .row .l{min-width:0}
 .row .t{font-weight:600}
 .row .s{font-size:12px;color:var(--muted)}
+.row .s b{white-space:nowrap}
 .row .r{text-align:right;white-space:nowrap}
 .amt{font-weight:600;color:var(--red)}
 .weekhead{font-size:12px;color:var(--muted);padding:14px 2px 4px;display:flex;justify-content:space-between}
@@ -533,11 +537,11 @@ function holdCalc(h){
   return {p,cost,val,aU,aK,buyFx, pricePL: val!=null&&aU ? (p-aU)*s*fx : null, fxPL: split ? aU*s*(fx-buyFx) : null};
 }
 function portfolio(){
-  const dv=divByTicker(); let tCost=0,tVal=0,tDiv=0,tDivP=0,tFx=0,fxN=0,noFx=0,missing=0; const rows=[];
+  const dv=divByTicker(); let tCost=0,tVal=0,tDiv=0,tDivP=0,tFx=0,fxN=0,noFx=0,missing=0,uCost=0,uVal=0,kCost=0,kVal=0; const rows=[];
   for(const h of S.holdings){ const c=holdCalc(h), d=dv[h.ticker]||0;
-    if(c.val==null) missing++; else { tVal+=c.val; tCost+=c.cost; tDivP+=d; if(c.fxPL!=null){ tFx+=c.fxPL; fxN++; } else if(h.currency!=="KRW"&&c.cost) noFx++; }
+    if(c.val==null) missing++; else { tVal+=c.val; tCost+=c.cost; tDivP+=d; if(c.fxPL!=null){ tFx+=c.fxPL; fxN++; uCost+=c.aU*h.shares; uVal+=c.p*h.shares; kCost+=c.cost; kVal+=c.val; } else if(h.currency!=="KRW"&&c.cost) noFx++; }
     tDiv+=d; rows.push(Object.assign({h,d},c)); }
-  return {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing,rows};
+  return {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing,rows,uCost,uVal,kCost,kVal};
 }
 const oddKrw=()=>S.holdings.filter(h=>h.currency==="KRW"&&!h.krwOk&&/^[A-Z][A-Z0-9.\-]{0,6}$/.test(h.ticker));
 function investMap(){ const m={}; for(const v of S.invest) if(+v.amount>0) m[v.ym]=(m[v.ym]||0)+(+v.amount); return m; }
@@ -561,10 +565,10 @@ function monthlyCard(){
   const y=homeYear, last=y===cy?now.getMonth():11, rs=monthRows(y);
   let tN=0,tG=0,tn=0,tGoal=0,tAct=0;
   const body=rs.slice(0,last+1).map((r,i)=>{ const g=goalFor(y,i), a=b==="gross"?r.gross:r.net; tN+=r.net; tG+=r.gross; tn+=r.n; if(g){ tGoal+=g; tAct+=a; }
-    return `<tr${y===cy&&i===now.getMonth()?' class="cur"':""}><td class="l"><b>${i+1}월</b></td><td class="${r.n?"amt":"muted"}">${r.n?won(r.net):"-"}</td><td>${r.n?won(r.gross):"-"}</td><td class="${g?(a>=g?"up":"down"):""}">${g?Math.round(a/g*100)+"%":"-"}</td></tr>`; }).join("");
+    return `<tr${y===cy&&i===now.getMonth()?' class="cur"':""}><td class="l"><b>${i+1}월</b></td><td class="${r.n?"amt":"muted"}">${r.n?won(r.net):"-"}</td><td>${g?won(g):"-"}</td><td class="${g?(a>=g?"up":"down"):""}">${g?Math.round(a/g*100)+"%":"-"}</td></tr>`; }).join("");
   return `<section class="card"><h2>월별 받은 배당 <small>달성률은 ${basisName()} 기준</small></h2>${yearChips("hychips",ys,y)}
-    <div class="tbl"><table><thead><tr><th class="l">월</th><th>세후</th><th>세전</th><th>달성</th></tr></thead>
-    <tbody>${body}<tr class="tot"><td class="l">합계</td><td class="amt">${won(tN)}</td><td>${won(tG)}</td><td>${tGoal?Math.round(tAct/tGoal*100)+"%":"-"}</td></tr></tbody></table></div></section>`;
+    <div class="tbl"><table><thead><tr><th class="l">월</th><th>세후</th><th>목표 배당</th><th>달성</th></tr></thead>
+    <tbody>${body}<tr class="tot"><td class="l">합계</td><td class="amt">${won(tN)}</td><td>${tGoal?won(tGoal):"-"}</td><td>${tGoal?Math.round(tAct/tGoal*100)+"%":"-"}</td></tr></tbody></table></div></section>`;
 }
 function viewHome(){
   const now=new Date(), y=now.getFullYear(), wk=byWeek();
@@ -615,11 +619,22 @@ function viewLog(){
   for(const [k,arr] of groups){
     const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0), m=parseD(k), end=new Date(m); end.setDate(end.getDate()+6);
     html+=`<div class="weekhead"><span><b style="color:var(--ink)">${weekLabel(k,true)}</b> · ${fmtD(m)}–${fmtD(end)}</span><span class="num">${won(sum)}</span></div><div class="card" style="padding:4px 16px">`;
-    html+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW";
-      const y = c.yield!=null ? `<span class="yield num">주가 ${u?usd(e.price):won(e.price)} 대비 ${c.yield.toFixed(2)}%</span>` : (u&&S.settings.tdKey&&!e.priceFail?`<span class="yield">주가 불러오는 중</span>`:"");
-      return `<div class="row" data-edit="${e.id}" style="cursor:pointer"><div class="l"><div class="t">${esc(e.ticker)}<span class="tag">${fmtD(parseD(e.date))}</span> ${chgHTML(chg[e.id],e.currency)}</div>
-      <div class="s num">${u?"$"+fmtPs(e.perShare):won(e.perShare)} × ${e.shares}주 · 세금 ${e.taxRate}%${u?` · 환율 ${e.fx}${e.fxPending?" (자동 반영 대기)":""}`:""}${e.memo?" · "+esc(e.memo):""}</div>${y}</div>
-      <div class="r"><div class="num amt">${won(c.netKRW)}</div><div class="s num">${u?usd(c.net):""}</div></div></div>`; }).join("");
+    const days=new Map(); for(const e of arr){ if(!days.has(e.date)) days.set(e.date,[]); days.get(e.date).push(e); }
+    let di=0;
+    for(const [d,es] of days){
+      const same=f=>es.every(x=>String(x[f])===String(es[0][f]));
+      const us=es.filter(x=>x.currency!=="KRW"), taxC=same("taxRate"), fxC=us.length>0&&us.every(x=>x.fx===us[0].fx), pend=us.some(x=>x.fxPending);
+      const info=[`<b style="color:var(--ink)">${fmtD(parseD(d))} (${"일월화수목금토"[parseD(d).getDay()]})</b>`];
+      if(taxC) info.push(`세금 ${es[0].taxRate}%`);
+      if(fxC) info.push(`환율 ${us[0].fx.toLocaleString()}원${pend?" (자동 반영 대기)":""}`);
+      html+=`<div class="dayhead${di++?" sep":""}">${info.join(" · ")}</div>`;
+      html+=es.map(e=>{ const c=calc(e), u=e.currency!=="KRW";
+        const y = c.yield!=null ? `<span class="yield num">주가 ${u?usd(e.price):won(e.price)} 대비 ${c.yield.toFixed(2)}%</span>` : (u&&S.settings.tdKey&&!e.priceFail?`<span class="yield">주가 불러오는 중</span>`:"");
+        const extra=[]; if(!taxC) extra.push(`세금 ${e.taxRate}%`); if(u&&!fxC) extra.push(`환율 ${e.fx}${e.fxPending?" (자동 반영 대기)":""}`); if(e.memo) extra.push(esc(e.memo));
+        return `<div class="row" data-edit="${e.id}" style="cursor:pointer"><div class="l"><div class="t">${esc(e.ticker)} ${chgHTML(chg[e.id],e.currency)}</div>
+        <div class="s num">${u?"$"+fmtPs(e.perShare):won(e.perShare)} × ${e.shares}주${extra.length?" · "+extra.join(" · "):""}</div>${y}</div>
+        <div class="r"><div class="num amt">${won(c.netKRW)}</div><div class="s num">${u?usd(c.net):""}</div></div></div>`; }).join("");
+    }
     html+=`</div>`;
   }
   return html+add;
@@ -632,7 +647,8 @@ function viewHold(){
     const pl = val!=null&&cost? val-cost : null, plp = pl!=null? pl/cost*100 : null, tot = pl!=null? (pl+d)/cost*100 : null;
     const pTxt = p? (kr?won(p):usd(p)) : "가격 없음";
     const avgTxt = kr ? (r.aK?won(r.aK):"미입력") : (r.aU||r.aK ? [r.aU?usd(r.aU):"", r.aK?won(r.aK):""].filter(Boolean).join(" · ") : "미입력");
-    const fxLine = r.fxPL!=null && val!=null ? `<div class="s num">환율 ${r.buyFx.toLocaleString("ko-KR",{maximumFractionDigits:1})} → ${fx.toLocaleString()} · 환차 <b class="${cls(r.fxPL)}">${wonS(r.fxPL)}</b> · 주가 <b class="${cls(r.pricePL)}">${wonS(r.pricePL)}</b></div>` : "";
+    const fxLine = r.fxPL!=null && val!=null ? `<div class="s num">수익률 달러 <b class="${cls(p-r.aU)}">${pct((p-r.aU)/r.aU*100)}</b> · 원화 <b class="${cls(val-cost)}">${pct((val-cost)/cost*100)}</b></div>
+      <div class="s num">평균 환율 ${r.buyFx.toLocaleString("ko-KR",{maximumFractionDigits:1})} → 오늘 ${fx.toLocaleString()} · 환차 <b class="${cls(r.fxPL)}">${wonS(r.fxPL)}</b> · 주가 <b class="${cls(r.pricePL)}">${wonS(r.pricePL)}</b></div>` : "";
     return `<div class="row" data-hold="${h.id}" style="cursor:pointer;align-items:flex-start"><div class="l"><div class="t">${esc(h.ticker)}<span class="tag">${esc(h.freq||"주배당")}</span>${kr?`<span class="tag">국내</span>`:""}</div>
       <div class="s num">${h.shares.toLocaleString()}주 · 평단 ${avgTxt} · 현재 ${pTxt}</div>
       ${fxLine}
@@ -644,12 +660,14 @@ function viewHold(){
   const odd=oddKrw();
   const banner = odd.length ? `<section class="card notice"><b>${odd.map(h=>esc(h.ticker)).join(", ")}</b> 종목이 국내(원) 종목으로 저장돼 있어서 현재가가 들어오지 않고 평가금액이 비어 있어요. 미국 주식을 원화로 산 거라면 ‘미국 종목이에요’를 눌러 주세요. 입력했던 평단은 원화 평단으로 옮겨져요.
     <div class="btnrow" style="margin-top:10px"><button class="primary" id="fixKrw">미국 종목이에요</button><button class="ghost" id="keepKrw">국내 종목 맞아요</button></div></section>` : "";
+  const {uCost,uVal,kCost,kVal}=P;
   const fxStats = fxN ? `<div class="stats" style="margin:10px 0 0">
-      <div class="stat"><div class="k">주가 손익</div><div class="v num ${cls(pl-tFx)}">${wonS(pl-tFx)}</div></div>
-      <div class="stat"><div class="k">환차손익</div><div class="v num ${cls(tFx)}">${wonS(tFx)}</div><div class="s" style="font-size:12px">${fxN}개 종목 기준</div></div></div>` : "";
+      <div class="stat"><div class="k">달러 기준 수익률</div><div class="v num ${cls(uVal-uCost)}">${pct((uVal-uCost)/uCost*100)}</div><div class="s" style="font-size:12px">주가 손익 ${wonS(pl-tFx)}</div></div>
+      <div class="stat"><div class="k">원화 기준 수익률</div><div class="v num ${cls(kVal-kCost)}">${pct((kVal-kCost)/kCost*100)}</div><div class="s" style="font-size:12px">환차손익 ${wonS(tFx)}</div></div></div>
+      ${fxN<P.rows.filter(r=>r.h.currency!=="KRW"&&r.val!=null).length?`<p class="muted" style="font-size:12px;margin:6px 0 0">두 수익률은 달러·원화 평단을 모두 넣은 ${fxN}개 종목 기준이에요.</p>`:""}` : "";
   const notes=[`달러 종목은 오늘 환율(${fx.toLocaleString()}원)로 평가해요.`];
   if(missing) notes.push(`가격이 없는 종목 ${missing}개는 합계에서 빠졌어요.`);
-  if(noFx) notes.push(`매수 환율을 넣지 않은 달러 종목 ${noFx}개는 환차손익을 따로 계산하지 못해요. 종목을 눌러 매수 평균 환율을 넣어 주세요.`);
+  if(noFx) notes.push(`달러 종목 ${noFx}개는 평단이 한 가지만 있어서 환차손익을 나누지 못해요. 종목을 눌러 달러 평단과 원화 평단을 둘 다 넣어 주세요.`);
   if(!S.settings.tdKey) notes.push("설정에서 주가 API 키를 넣으면 현재가가 자동으로 들어와요.");
   return `${banner}
   <section class="card">
@@ -979,41 +997,44 @@ function entrySheet(id){
 }
 
 function holdSheet(id){
-  const h=id?S.holdings.find(x=>x.id===id):null; let cur=h?h.currency:"USD", au=h&&h.currency!=="KRW"&&h.avgCur==="KRW"?"KRW":"USD";
-  const avgVal = !h ? "" : h.currency==="KRW" ? (h.avgCost||"") : au==="KRW" ? (h.avgCostKRW||"") : (h.avgCost||"");
+  const h=id?S.holdings.find(x=>x.id===id):null; let cur=h?h.currency:"USD";
+  const c0=h&&h.currency!=="KRW"?holdCalc(h):null;
+  const r2=(n,d)=>n?Math.round(n*10**d)/10**d:"";
+  const vU=c0?r2(c0.aU,4):"", vK=c0?r2(c0.aK,2):"", vW=h&&h.currency==="KRW"?(h.avgCost||""):"";
   openSheet(`<h3>${h?"종목 수정":"종목 추가"}</h3>
     <label class="f" for="ht">티커 / 종목명</label><input id="ht" value="${esc(h?h.ticker:"")}" placeholder="예: SPYI, QQQI, YMAX" autocapitalize="characters">
     <div class="grid2"><div><label class="f" for="hs">보유 수량</label><input id="hs" type="number" inputmode="decimal" step="any" value="${h?h.shares:""}"></div>
     <div><label class="f">상장 시장</label><div class="seg" id="hc"><button type="button" data-c="USD" aria-pressed="${cur==="USD"}">미국 $</button><button type="button" data-c="KRW" aria-pressed="${cur==="KRW"}">국내 ₩</button></div></div></div>
-    <div class="grid2"><div><label class="f" for="ha">평균 매수가 (1주)</label><input id="ha" type="number" inputmode="decimal" step="any" value="${avgVal}"></div>
-    <div id="hauw"><label class="f">매수가 단위</label><div class="seg" id="hau"><button type="button" data-u="USD" aria-pressed="${au==="USD"}">달러</button><button type="button" data-u="KRW" aria-pressed="${au==="KRW"}">원화</button></div></div></div>
-    <div id="hbfw"><label class="f" for="hbf">매수 평균 환율 (선택, 환차손익 계산용)</label><input id="hbf" type="number" inputmode="decimal" step="0.01" value="${h&&h.buyFx?h.buyFx:""}" placeholder="예: ${S.settings.fx}"></div>
-    <div class="calc num" id="hpv"></div>
+    <div id="husd"><div class="grid2"><div><label class="f" for="hau">달러 평단 ($)</label><input id="hau" type="number" inputmode="decimal" step="any" value="${vU}" placeholder="예: 50.12"></div>
+      <div><label class="f" for="hak">원화 평단 (₩, 1주)</label><input id="hak" type="number" inputmode="decimal" step="any" value="${vK}" placeholder="예: 68000"></div></div>
+      <p class="calc" style="margin:4px 0 0">증권사 앱의 달러 평단과 원화 평단을 그대로 옮겨 적으세요. 여러 번 나눠 산 환율이 원화 평단에 이미 반영돼 있어서, 평균 매수 환율은 자동으로 계산돼요.</p></div>
+    <div id="hkrw"><label class="f" for="haw">평균 매수가 (원)</label><input id="haw" type="number" inputmode="decimal" step="any" value="${vW}"></div>
+    <div class="preview num" id="hpv" style="font-size:13px"></div>
     <div class="grid2"><div><label class="f" for="hm">현재가 직접 입력 <span class="hcur"></span></label><input id="hm" type="number" inputmode="decimal" step="any" value="${h&&h.manualPrice?h.manualPrice:""}" placeholder="자동이면 비워 두기"></div>
     <div><label class="f" for="hf">지급 주기</label><select id="hf">${["주배당","월배당","분기배당"].map(f=>`<option ${h&&h.freq===f?"selected":""}>${f}</option>`).join("")}</select></div></div>
     <label class="f" for="hp">지급 요일 (선택)</label><input id="hp" value="${esc(h?h.payday||"":"")}" placeholder="예: 금요일">
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
-      const upd=()=>{ const us=cur!=="KRW"; $("#hauw").hidden=!us; $("#hbfw").hidden=!us;
+      const upd=()=>{ const us=cur!=="KRW", fx=S.settings.fx; $("#husd").hidden=!us; $("#hkrw").hidden=us;
         document.querySelectorAll(".hcur").forEach(x=>x.textContent=`(${us?"$":"원"})`);
-        const v=+$("#ha").value||0, bf=+$("#hbf").value||0, sh=+$("#hs").value||0, t=$("#ht").value.trim().toUpperCase(); let msg="";
-        if(!us){ msg = /^[A-Z][A-Z0-9.\-]{0,6}$/.test(t) ? "국내 종목은 현재가를 직접 넣어야 해요. 미국 주식을 원화로 샀다면 시장은 ‘미국’, 매수가 단위는 ‘원화’를 고르세요." : (v&&sh?`매수금액 ${won(v*sh)}`:""); }
-        else if(v){ if(au==="KRW") msg=`원화 매수금액 ${won(v*sh)}`+(bf?` · 달러 평단 ${usd(v/bf)}`:" · 매수 환율을 넣으면 환차손익을 따로 볼 수 있어요");
-          else msg = bf ? `원화 매수금액 ${won(v*bf*sh)} · 오늘 환율이면 ${wonS(v*sh*(S.settings.fx-bf))} 환차` : `매수 환율이 없으면 오늘 환율(${S.settings.fx.toLocaleString()}원)로 원금을 계산해요`; }
-        $("#hpv").textContent=msg; };
+        const aU=+$("#hau").value||0, aK=+$("#hak").value||0, sh=+$("#hs").value||0, t=$("#ht").value.trim().toUpperCase(), pv=$("#hpv");
+        const p = us ? (S.quotes[t]?S.quotes[t].price:(+$("#hm").value||0)) : 0;
+        let msg="";
+        if(!us){ msg = /^[A-Z][A-Z0-9.\-]{0,6}$/.test(t) ? "국내 종목은 현재가를 직접 넣어야 해요. 미국 주식을 원화로 샀다면 시장은 ‘미국’을 고르고 원화 평단 칸에 넣으세요." : ""; }
+        else if(aU&&aK){ const bf=aK/aU; msg=`평균 매수 환율 ${bf.toLocaleString("ko-KR",{maximumFractionDigits:1})}원 · 오늘 ${fx.toLocaleString()}원`;
+          if(p) msg+=`<br>수익률 달러 ${pct((p-aU)/aU*100)} · 원화 ${pct((p*fx-aK)/aK*100)}`; }
+        else if(aK) msg="달러 평단도 넣으면 환차손익과 달러 기준 수익률을 따로 볼 수 있어요.";
+        else if(aU) msg=`원화 평단이 없으면 오늘 환율(${fx.toLocaleString()}원)로 원금을 계산해서 환차손익이 0으로 보여요.`;
+        pv.innerHTML=msg; pv.hidden=!msg; };
       $("#hc").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; cur=b.dataset.c; $("#hc").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cur)); upd(); };
-      $("#hau").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; au=b.dataset.u; $("#hau").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.u===au)); upd(); };
       $("#sheet").addEventListener("input",upd); upd();
       $("#hcx").onclick=closeSheet;
       if(h) $("#hdel").onclick=()=>{ if(!confirm("종목을 삭제할까요? 지난 배당 기록은 남아 있어요.")) return; S.holdings=S.holdings.filter(x=>x.id!==h.id); markDeleted(h.id); persist(); closeSheet(); };
       $("#hsv").onclick=()=>{
         const t=$("#ht").value.trim().toUpperCase(), sh=+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
-        const v=+$("#ha").value||0, bf=cur==="KRW"?0:(+$("#hbf").value||0);
-        const rec={ticker:t,shares:sh,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),
-          buyFx:bf, avgCur:cur==="KRW"?"KRW":au, krwOk:cur==="KRW"};
-        if(cur==="KRW"){ rec.avgCost=v; rec.avgCostKRW=0; }
-        else if(au==="KRW"){ rec.avgCostKRW=v; rec.avgCost=bf?Math.round(v/bf*10000)/10000:0; }
-        else { rec.avgCost=v; rec.avgCostKRW=bf?Math.round(v*bf*100)/100:0; }
+        const rec={ticker:t,shares:sh,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
+        if(cur==="KRW"){ Object.assign(rec,{avgCost:+$("#haw").value||0,avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
+        else { const aU=+$("#hau").value||0, aK=+$("#hak").value||0; Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }
         if(h) Object.assign(h,rec); else S.holdings.push(Object.assign({id:uid()},rec));
         persist(); closeSheet(); tab="hold"; toast("저장했어요"); refreshQuotes(true);
       };
