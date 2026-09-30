@@ -101,6 +101,10 @@ h2 small{font-weight:400;font-size:12px;color:var(--muted)}
 .row .t{font-weight:600}
 .row .s{font-size:12px;color:var(--muted)}
 .row .r{text-align:right;white-space:nowrap}
+.row.hrow{flex-wrap:wrap;row-gap:2px}
+.row.hrow .l{flex:1}
+.row.hrow .full{flex-basis:100%}
+.nw{white-space:nowrap}
 .amt{font-weight:600;color:var(--red)}
 .weekhead{font-size:12px;color:var(--muted);padding:14px 2px 4px;display:flex;justify-content:space-between}
 .empty{text-align:center;color:var(--muted);padding:26px 8px;font-size:14px}
@@ -646,11 +650,11 @@ function viewHold(){
     const pl = val!=null&&cost? val-cost : null, plp = pl!=null? pl/cost*100 : null, tot = pl!=null? (pl+d)/cost*100 : null;
     const pTxt = p? (kr?won(p):usd(p)) : "가격 없음";
     const avgTxt = kr ? (r.aK?won(r.aK):"미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "미입력";
-    return `<div class="row" data-hold="${h.id}" style="cursor:pointer;align-items:flex-start"><div class="l"><div class="t">${esc(h.ticker)}<span class="tag">${esc(h.freq||"주배당")}</span>${kr?`<span class="tag">국내</span>`:""}</div>
-      <div class="s num">${h.shares.toLocaleString()}주 · 평단 ${avgTxt} · 현재 ${pTxt}</div>
-      <div class="s num">받은 배당 ${won(d)}${val?` <b class="up">(평가금액 대비 ${(d/val*100).toFixed(2)}%)</b>`:""}</div>
-      ${tot!=null?`<div class="s num">배당 포함 총수익 <b class="${cls(tot)}">${pct(tot,2)}</b></div>`:""}</div>
-      <div class="r"><div class="num" style="font-weight:600">${val!=null?won(val):"-"}</div><div class="s num ${cls(pl||0)}">${pl!=null?`${wonS(pl)} (${pct(plp,1)})`:""}</div></div></div>`;
+    return `<div class="row hrow" data-hold="${h.id}" style="cursor:pointer;align-items:flex-start"><div class="l"><div class="t">${esc(h.ticker)}<span class="tag">${esc(h.freq||"주배당")}</span>${kr?`<span class="tag">국내</span>`:""}</div>
+      <div class="s num">${h.shares.toLocaleString()}주 · 평단 ${avgTxt} · 현재 ${pTxt}</div></div>
+      <div class="r"><div class="num" style="font-weight:600">${val!=null?won(val):"-"}</div><div class="s num ${cls(pl||0)}">${pl!=null?`${wonS(pl)} (${pct(plp,1)})`:""}</div></div>
+      <div class="full"><div class="s num">받은 배당 ${won(d)}${val?` <b class="up nw">(평가금액 대비 ${(d/val*100).toFixed(2)}%)</b>`:""}</div>
+      ${tot!=null?`<div class="s num">배당 포함 총수익 <b class="${cls(tot)}">${pct(tot,2)}</b></div>`:""}</div></div>`;
   }).join("");
   const {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing}=P, pl=tVal-tCost, q=Object.values(S.quotes).map(x=>x.at).sort().pop();
   const odd=oddKrw();
