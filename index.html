@@ -100,7 +100,6 @@ h2 small{font-weight:400;font-size:12px;color:var(--muted)}
 .row .l{min-width:0}
 .row .t{font-weight:600}
 .row .s{font-size:12px;color:var(--muted)}
-.row .s b{white-space:nowrap}
 .row .r{text-align:right;white-space:nowrap}
 .amt{font-weight:600;color:var(--red)}
 .weekhead{font-size:12px;color:var(--muted);padding:14px 2px 4px;display:flex;justify-content:space-between}
@@ -646,25 +645,19 @@ function viewHold(){
   const rows=P.rows.map(r=>{ const {h,p,cost,val,d}=r, kr=h.currency==="KRW";
     const pl = val!=null&&cost? val-cost : null, plp = pl!=null? pl/cost*100 : null, tot = pl!=null? (pl+d)/cost*100 : null;
     const pTxt = p? (kr?won(p):usd(p)) : "가격 없음";
-    const avgTxt = kr ? (r.aK?won(r.aK):"미입력") : (r.aU||r.aK ? [r.aU?usd(r.aU):"", r.aK?won(r.aK):""].filter(Boolean).join(" · ") : "미입력");
-    const fxLine = r.fxPL!=null && val!=null ? `<div class="s num">수익률 달러 <b class="${cls(p-r.aU)}">${pct((p-r.aU)/r.aU*100)}</b> · 원화 <b class="${cls(val-cost)}">${pct((val-cost)/cost*100)}</b></div>
-      <div class="s num">평균 환율 ${r.buyFx.toLocaleString("ko-KR",{maximumFractionDigits:1})} → 오늘 ${fx.toLocaleString()} · 환차 <b class="${cls(r.fxPL)}">${wonS(r.fxPL)}</b> · 주가 <b class="${cls(r.pricePL)}">${wonS(r.pricePL)}</b></div>` : "";
+    const avgTxt = kr ? (r.aK?won(r.aK):"미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "미입력";
+    const fxLine = r.fxPL!=null && val ? `<div class="s num">환차손익 ${wonS(r.fxPL)} <b class="${cls(r.fxPL)}">(평가금액 대비 ${pct(r.fxPL/val*100)})</b></div>` : "";
     return `<div class="row" data-hold="${h.id}" style="cursor:pointer;align-items:flex-start"><div class="l"><div class="t">${esc(h.ticker)}<span class="tag">${esc(h.freq||"주배당")}</span>${kr?`<span class="tag">국내</span>`:""}</div>
       <div class="s num">${h.shares.toLocaleString()}주 · 평단 ${avgTxt} · 현재 ${pTxt}</div>
       ${fxLine}
       <div class="s num">받은 배당 ${won(d)}${val?` <b class="up">(평가금액 대비 ${(d/val*100).toFixed(2)}%)</b>`:""}</div>
-      ${tot!=null?`<div class="s num">배당 포함 총수익 <b class="${cls(tot)}">${pct(tot,1)}</b></div>`:""}</div>
+      ${tot!=null?`<div class="s num">배당 포함 총수익 <b class="${cls(tot)}">${pct(tot,2)}</b></div>`:""}</div>
       <div class="r"><div class="num" style="font-weight:600">${val!=null?won(val):"-"}</div><div class="s num ${cls(pl||0)}">${pl!=null?`${wonS(pl)} (${pct(plp,1)})`:""}</div></div></div>`;
   }).join("");
   const {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing}=P, pl=tVal-tCost, q=Object.values(S.quotes).map(x=>x.at).sort().pop();
   const odd=oddKrw();
   const banner = odd.length ? `<section class="card notice"><b>${odd.map(h=>esc(h.ticker)).join(", ")}</b> 종목이 국내(원) 종목으로 저장돼 있어서 현재가가 들어오지 않고 평가금액이 비어 있어요. 미국 주식을 원화로 산 거라면 ‘미국 종목이에요’를 눌러 주세요. 입력했던 평단은 원화 평단으로 옮겨져요.
     <div class="btnrow" style="margin-top:10px"><button class="primary" id="fixKrw">미국 종목이에요</button><button class="ghost" id="keepKrw">국내 종목 맞아요</button></div></section>` : "";
-  const {uCost,uVal,kCost,kVal}=P;
-  const fxStats = fxN ? `<div class="stats" style="margin:10px 0 0">
-      <div class="stat"><div class="k">달러 기준 수익률</div><div class="v num ${cls(uVal-uCost)}">${pct((uVal-uCost)/uCost*100)}</div><div class="s" style="font-size:12px">주가 손익 ${wonS(pl-tFx)}</div></div>
-      <div class="stat"><div class="k">원화 기준 수익률</div><div class="v num ${cls(kVal-kCost)}">${pct((kVal-kCost)/kCost*100)}</div><div class="s" style="font-size:12px">환차손익 ${wonS(tFx)}</div></div></div>
-      ${fxN<P.rows.filter(r=>r.h.currency!=="KRW"&&r.val!=null).length?`<p class="muted" style="font-size:12px;margin:6px 0 0">두 수익률은 달러·원화 평단을 모두 넣은 ${fxN}개 종목 기준이에요.</p>`:""}` : "";
   const notes=[`달러 종목은 오늘 환율(${fx.toLocaleString()}원)로 평가해요.`];
   if(missing) notes.push(`가격이 없는 종목 ${missing}개는 합계에서 빠졌어요.`);
   if(noFx) notes.push(`달러 종목 ${noFx}개는 평단이 한 가지만 있어서 환차손익을 나누지 못해요. 종목을 눌러 달러 평단과 원화 평단을 둘 다 넣어 주세요.`);
@@ -676,8 +669,9 @@ function viewHold(){
       <div class="stat"><div class="k">평가금액</div><div class="v num">${won(tVal)}</div></div>
       <div class="stat"><div class="k">평가손익</div><div class="v num ${cls(pl)}">${tCost?`${wonS(pl)}`:"-"}</div><div class="s num ${cls(pl)}" style="font-size:12px">${tCost?pct(pl/tCost*100):""}</div></div>
       <div class="stat"><div class="k">받은 배당 (세후)</div><div class="v num up">${won(tDiv)}</div><div class="s num up" style="font-size:12px">${tVal?`평가금액 대비 ${(tDivP/tVal*100).toFixed(2)}%`:""}</div></div>
-      <div class="stat"><div class="k">배당 포함 총수익</div><div class="v num ${cls(pl+tDivP)}">${tCost?wonS(pl+tDivP):"-"}</div><div class="s num ${cls(pl+tDivP)}" style="font-size:12px">${tCost?pct((pl+tDivP)/tCost*100):""}</div></div>
-    </div>${fxStats}
+      ${fxN?`<div class="stat"><div class="k">환차손익</div><div class="v num ${cls(tFx)}">${wonS(tFx)}</div><div class="s num ${cls(tFx)}" style="font-size:12px">${tVal?`평가금액 대비 ${pct(tFx/tVal*100)}`:""}</div></div>`:""}
+      <div class="stat"${fxN?' style="grid-column:1 / -1"':""}><div class="k">배당 포함 총수익${fxN?" (환차 포함)":""}</div><div class="v num ${cls(pl+tDivP)}">${tCost?wonS(pl+tDivP):"-"}</div><div class="s num ${cls(pl+tDivP)}" style="font-size:12px">${tCost?pct((pl+tDivP)/tCost*100):""}</div></div>
+    </div>
     <p class="muted" style="margin:10px 0 0">${notes.join(" ")}</p>
   </section>
   <section class="card" style="padding:4px 16px">${rows}</section>
