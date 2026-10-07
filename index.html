@@ -287,7 +287,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="2.0", APP_DATE="2026-10-07", APP_NOTES="배당률 탭 통합·세로 보기, 요약 그래프 드래그, 월 내역 보기";
+const APP_VERSION="2.1", APP_DATE="2026-10-07", APP_NOTES="원금=평단×수량, 요약에 이번 주 카드, 구글 로그인 자동 갱신";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
@@ -493,7 +493,7 @@ const Drive = {
   },
   async auth(silent){
     if(!S.settings.gClientId) throw new Error("noclient");
-    await this.loadGIS();
+    if(!(window.google && google.accounts && google.accounts.oauth2)) await this.loadGIS(); // 이미 불러왔으면 바로 진행 (화면을 누른 순간에 로그인 창이 열려야 막히지 않아요)
     return new Promise((res,rej)=>{
       const to=setTimeout(()=>rej(new Error(silent?"silent_timeout":"timeout")), silent?12000:180000);
       const fin=(f,v)=>{ clearTimeout(to); f(v); };
@@ -536,12 +536,15 @@ const Drive = {
   async sync(interactive){
     if(this.busy){ this.again=true; return; }
     if(!online()){ if(interactive) toast("인터넷 연결 후 동기화할 수 있어요"); return; }
-    if(!interactive){ if(!this.linked()) return; if(!this.ready()){ this.status="needs"; this.setChip(); return; } }
+    if(!interactive){ if(!this.linked()) return; if(!this.ready() && Date.now()<this.noSilentUntil){ this.status="needs"; this.setChip(); return; } }
     this.busy=true; this.setChip("동기화 중…");
     try{
       if(!this.ready()){
         try{ await this.auth(!interactive); }
-        catch(e){ if(interactive) throw e; this.noSilentUntil=Date.now()+2*60000; this.status="needs"; return; }
+        catch(e){ if(interactive) throw e; this.noSilentUntil=Date.now()+10*60000; this.status="needs"; return; }
+      } else if(!interactive && this.exp-Date.now()<5*60000 && Date.now()>=this.noSilentUntil){
+        // 곧 만료되면 미리 조용히 갱신해요 (실패해도 아직 쓸 수 있는 토큰으로 계속)
+        try{ await this.auth(true); }catch(e){ this.noSilentUntil=Date.now()+10*60000; }
       }
       if(!S.settings.gLinked){ S.settings.gLinked=true; }
       const before=digest(S), id=await this.findFile();
@@ -574,7 +577,11 @@ const Drive = {
   // 앱이 열려 있는 동안 1분마다 다른 기기의 변경을 가져와요
   startAuto(){
     if(this.poll) return;
-    this.poll=setInterval(()=>{ if(document.visibilityState==="visible" && this.ready()) this.sync(false); },60000);
+    this.poll=setInterval(()=>{ if(document.visibilityState==="visible" && this.linked()) this.sync(false); },60000);
+    // 토큰이 만료돼 있으면 화면을 처음 누르는 순간 조용히 다시 로그인해요 (로그인 창은 누른 순간에만 열 수 있어서)
+    document.addEventListener("pointerdown",()=>{
+      if(this.linked() && !this.busy && (!this.ready() || this.exp-Date.now()<5*60000) && Date.now()-this.gestureAt>20000){ this.gestureAt=Date.now(); this.noSilentUntil=0; this.sync(false); }
+    },true);
   },
   setChip(t){
     const c=$("#syncChip"); if(!c) return;
@@ -686,8 +693,9 @@ function monthRows(y){ const a=Array.from({length:12},()=>({net:0,gross:0,n:0}))
   return a; }
 
 // ---------- 원금 대비 주배당률 ----------
-function principalOf(ym){ const p=planOf(ym); return p&&p.principal>0 ? p.principal*10000 : 0; }
-function fallbackPrincipal(){ const P=portfolio(); return P.tCost>0 ? P.tCost : 0; }
+function fallbackPrincipal(){ let t=0; for(const h of S.holdings){ const c=holdCalc(h).cost; if(c>0) t+=c; } return t; }
+// 원금 = 보유 종목의 평단 × 수량 (평단이 하나도 없을 때만 계획 탭의 월 원금을 써요)
+function principalOf(ym){ const fb=fallbackPrincipal(); if(fb>0) return fb; const p=planOf(ym); return p&&p.principal>0 ? p.principal*10000 : 0; }
 function planRate(p){ return p&&p.principal>0&&p.expected>0 ? p.expected/p.principal/4*100 : null; }
 function weekAmts(b){ const m=new Map(); for(const e of S.entries){ const k=weekKey(e.date); m.set(k,(m.get(k)||0)+amtOf(e,b)); } return m; }
 function weekRates(n){
@@ -711,13 +719,14 @@ function monthRates(){
   return [...by.values()].sort((a,c)=>a.ym.localeCompare(c.ym)).map(o=>Object.assign(o,{rate:o.pr>0?o.amt/o.pr*100:null, principal:o.weeks?o.pr/o.weeks:0}));
 }
 function principalNow(){
+  const fb=fallbackPrincipal(); if(fb>0) return {v:fb,plan:false};
   const cur=ymOf(new Date().getFullYear(),new Date().getMonth()), ps=S.plan.filter(p=>p.principal>0&&p.ym<=cur).sort((a,c)=>c.ym.localeCompare(a.ym));
-  return ps.length?{v:ps[0].principal*10000,plan:true}:{v:fallbackPrincipal(),plan:false};
+  return {v:ps.length?ps[0].principal*10000:0,plan:true};
 }
 const avgOf=(t,cur)=>{ const h=S.holdings.find(x=>x.ticker===t); if(!h) return 0; const c=holdCalc(h); return cur==="KRW"?(c.aK||0):(c.aU||0); };
 function rateView(){
   const base=+S.settings.baseYield||0, b=basis(), p2=v=>v.toFixed(2)+"%", pn=principalNow();
-  if(!S.entries.length||!(pn.v>0)) return `<section class="card"><div class="empty">원금과 배당 기록이 있어야 계산할 수 있어요.<br>계획 탭에서 월 원금을 넣거나, 보유 탭에 종목 평단을 입력해 주세요.</div><div class="btnrow"><button id="goPlan">계획 탭으로</button></div></section>`;
+  if(!S.entries.length||!(pn.v>0)) return `<section class="card"><div class="empty">원금과 배당 기록이 있어야 계산할 수 있어요.<br>보유 탭에 종목 평단과 수량을 입력해 주세요.</div><div class="btnrow"><button id="goHold">보유 탭으로</button></div></section>`;
   const rr=recentRate(), now=new Date(), cy=now.getFullYear();
   let tot=0, ytd=0; const cut=isoOf(new Date(now.getFullYear()-1,now.getMonth(),now.getDate()));
   for(const e of S.entries){ const a=amtOf(e,b); tot+=a; if(e.date.startsWith(cy+"-")) ytd+=a; }
@@ -727,7 +736,7 @@ function rateView(){
     <div class="mini"><div><div class="k">연 환산</div><div class="v num">${rr.rate!=null?(rr.rate*52).toFixed(1)+"%":"-"}</div></div>
     <div><div class="k">누적</div><div class="v num">${p2(tot/pn.v*100)}</div></div>
     <div><div class="k">올해</div><div class="v num">${p2(ytd/pn.v*100)}</div></div></div>
-    <p class="muted" style="margin:12px 0 0;font-size:12px">${basisName()} · 원금 ${man(pn.v)}만원${pn.plan?"":" (보유 종목 매입금액)"}${base?` · 기준 주 ${base}%`:""}</p></section>`;
+    <p class="muted" style="margin:12px 0 0;font-size:12px">${basisName()} · 원금 ${man(pn.v)}만원 (${pn.plan?"계획 탭 기준":"평단 × 수량"})${base?` · 기준 주 ${base}%`:""}</p></section>`;
   let body="";
   if(rateMode==="week"){
     const all=weekRates(52).map(w=>Object.assign(w,{rate:w.amt/(w.pr||pn.v)*100})), fi=all.findIndex(w=>w.amt>0), ws=fi>=0?all.slice(fi):[], sh=ws.slice(-26);
@@ -752,7 +761,7 @@ function rateView(){
       return `<details class="tkd"><summary><div><div class="t">${esc(t)}</div><div class="s">매입가 ${avgTxt} · 받은 배당 ${won(tot2[t])}</div></div><div class="r"><div class="p">${has?p2(sum):"-"}</div><div class="s">누적</div></div></summary><div class="tkb">${rows}</div></details>`; }).join("");
     body=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">종목별 배당률 <small>주당 배당 ÷ 산 가격(평단)</small></h2>${items}</section>`;
   }
-  return hero+seg+body+`<p class="muted" style="font-size:12px;margin:0 2px 12px">원금은 계획 탭의 월 원금이에요(없으면 보유 종목 매입금액). 종목별은 산 가격 대비라 달러 종목은 달러 평단 기준이에요. 세전/세후는 계획 탭에서 바꿔요.</p>`;
+  return hero+seg+body+`<p class="muted" style="font-size:12px;margin:0 2px 12px">원금은 보유 탭에 넣은 평단 × 수량의 합이에요(평단이 없으면 계획 탭의 월 원금). 종목별은 산 가격 대비라 달러 종목은 달러 평단 기준이에요. 세전/세후는 계획 탭에서 바꿔요.</p>`;
 }
 // ---------- views ----------
 function goalBlock(){
@@ -779,7 +788,7 @@ function viewHome(){
   const now=new Date(), y=now.getFullYear(), wk=byWeek();
   let ytd=0, total=0;
   for(const e of S.entries){ const v=calc(e).netKRW, d=parseD(e.date); total+=v; if(d.getFullYear()===y) ytd+=v; }
-  const avg=recentAvgWeek(), rr=recentRate();
+  const avg=recentAvgWeek(), rr=recentRate(), mon0=monday(now), thisWk=wk.get(isoOf(mon0))||0, lastWk=wk.get(isoOf(new Date(mon0.getFullYear(),mon0.getMonth(),mon0.getDate()-7)))||0;
   const start=monday(new Date(y,0,1)); const cells=[]; let max=0;
   for(let i=0;i<52;i++){ const m=new Date(start); m.setDate(m.getDate()+7*i); const v=wk.get(isoOf(m))||0; cells.push({m,v}); if(v>max)max=v; }
   const strip=cells.map(c=>{ const a=max?Math.max(.18,c.v/max):0; const now1=monday(now).getTime()===c.m.getTime();
@@ -797,6 +806,7 @@ function viewHome(){
     ${goalBlock()}
   </section>
   <section class="stats">
+    <div class="stat"><div class="k">이번 주 (세후)</div><div class="v num">${won(thisWk)}</div><div class="muted" style="font-size:12px">지난주 ${won(lastWk)}</div></div>
     <div class="stat"><div class="k">최근 4주 평균 / 주</div><div class="v num">${won(avg)}</div></div>
     <div class="stat"><div class="k">연 환산 예상</div><div class="v num">${won(avg*52)}</div></div>
     <div class="stat" data-go-rate title="누르면 배당률 그래프로 이동"><div class="k">원금 대비 주배당률</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:12px">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"계획 탭에서 원금을 넣어요"}</div></div>
@@ -1360,6 +1370,7 @@ function bindView(){
   const tc=v.querySelector("#tchips"); if(tc) tc.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ tickerSel=b.dataset.t; render(); } };
   v.querySelectorAll("[data-plan]").forEach(r=>r.onclick=()=>planSheet(r.dataset.plan));
   on("#goPlan",()=>{ tab="plan"; render(); window.scrollTo(0,0); });
+  on("#goHold",()=>{ tab="hold"; render(); window.scrollTo(0,0); });
   v.querySelectorAll("[data-month]").forEach(r=>r.onclick=()=>monthSheet(r.dataset.month));
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;
     hsc.onpointerdown=e=>{ if(e.pointerType==="mouse"){ dn=true; sx=e.clientX; sl=hsc.scrollLeft; hsc.setPointerCapture(e.pointerId); hsc.style.cursor="grabbing"; } };
