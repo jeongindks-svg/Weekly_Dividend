@@ -33,7 +33,6 @@ function bindView(){
   on("#pAdd",()=>planSheet());
   on("#pLoad",()=>{ if(S.plan.length && !confirm("PDF 계획(2026.9~2028.9)을 다시 불러올까요? 같은 달 계획은 PDF 내용으로 바뀌어요.")) return; loadPdfPlan(false); persist(); render(); toast("계획을 불러왔어요"); });
   on("#pClear",()=>{ if(!confirm("계획을 모두 삭제할까요?")) return; S.plan.forEach(x=>markDeleted(x.id)); S.plan=[]; persist(); render(); });
-  const pb=v.querySelector("#pbasis"); if(pb) pb.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ S.settings.goalBasis=b.dataset.b; touchSettings(); persist(); render(); } };
   const py=v.querySelector("#pby"); if(py) py.onchange=()=>{ const n=+py.value; if(n>0){ S.settings.baseYield=n; touchSettings(); persist(); toast("기준 주배당을 저장했어요"); } };
   on("#refQ",async()=>{ toast("주가를 불러오는 중…"); if(await refreshQuotes(true)) toast("주가를 새로 불러왔어요"); });
   const rs=v.querySelector("#rseg"); if(rs) rs.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ rateMode=b.dataset.m; render(); } };

@@ -62,8 +62,9 @@ function donut(items){
 }
 
 // ---------- goals / plan helpers ----------
-const basis=()=>S.settings.goalBasis||"gross";
-const basisName=()=>basis()==="gross"?"세전":"세후";
+// 모든 금액은 세후 기준으로 고정
+const basis=()=>"net";
+const basisName=()=>"세후";
 const amtOf=(e,b)=>{ const c=calc(e); return b==="gross"?c.grossKRW:c.netKRW; };
 const ymOf=(y,m)=>y+"-"+String(m+1).padStart(2,"0");
 const ymLabel=ym=>{ const [y,m]=ym.split("-"); return `${y.slice(2)}.${+m}`; };

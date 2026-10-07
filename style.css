@@ -248,3 +248,14 @@ nav.tabs .in{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-a
   #view.one > *{column-span:none}
   #view.list{max-width:760px;margin:0 auto}
 }
+
+/* 설정·기록·계획 정리 */
+.gh{font-size:13px;color:var(--muted);margin:18px 6px 6px;font-weight:500}
+.gh2{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin:16px 6px 6px}
+.gh2 > span:first-child{font-weight:600}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--rule)}
+.srow:first-child{border-top:none}
+.srow label,.srow .t{font-size:15px;font-weight:500}.srow .s{font-size:12px;color:var(--muted);margin-top:2px;font-weight:400}
+.srow input[type=number]{width:120px;text-align:right}
+.hl.cur{background:var(--bg);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:12px;border-top-color:transparent}
+.hl[data-plan] .m,.hl[data-plan] .rt{min-width:0}
