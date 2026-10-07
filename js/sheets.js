@@ -191,50 +191,92 @@ function holdSheet(id){
     });
 }
 
-// ---------- plan (예상 배당금 PDF) ----------
-const PDF_PLAN=[
- ["2026-09",550,"",18,"-8(변동값) · +10(재투자) · 실투자금 평가액 590"],
- ["2026-10",670,"110+10(배당금)",22,"-10(변동값) · +12(재투자)"],
- ["2026-11",812,"130+12(배당금)",27,"-10(변동값) · +17(재투자)"],
- ["2026-12",959,"130+17(배당금)",32,"-20(변동값) · +12(재투자)"],
- ["2027-01",1101,"130+12(배당금)",37,"-20(변동값) · +17(재투자)"],
- ["2027-02",1248,"130+17(배당금)",42,"-20(변동값) · +22(재투자)"],
- ["2027-03",1400,"130+22(배당금)",47,"-20(변동값) · +27(재투자)"],
- ["2027-04",1557,"130+27(배당금)",52,"-20(변동값) · +32(재투자)"],
- ["2027-05",1719,"130+32(배당금)",58,"-20(변동값) · +38(재투자)"],
- ["2027-06",1887,"130+38(배당금)",64,"-20(변동값) · +20(재투자) · +24(QLD)"],
- ["2027-07",2037,"130+20(배당금)",69,"-20(변동값) · +20(재투자) · +29(QLD)"],
- ["2027-08",2187,"130+20(배당금)",74,"-20(변동값) · +20(재투자) · +34(QLD)"],
- ["2027-09",2337,"130+20(배당금)",79,"-20(변동값) · +20(재투자) · +39(QLD)"],
- ["2027-10",2487,"130+20(배당금)",84,"-20(변동값) · +20(재투자) · +44(QLD)"],
- ["2027-11",2637,"130+20(배당금)",89,"-20(변동값) · +20(재투자) · +49(QLD)"],
- ["2027-12",2787,"130+20(배당금)",94,"-20(변동값) · +33(재투자) · +41(QLD 투자)"],
- ["2028-01",2950,"130+33(배당금)",100,"-20(변동값) · +20(재투자) · +60(QLD 투자)"],
- ["2028-02",3110,"140+20(배당금)",105,"-20(변동값) · +30(재투자) · +55(QLD 투자)"],
- ["2028-03",3280,"140+30(배당금)",111,"-20(변동값) · +40(재투자) · +51(QLD 투자)"],
- ["2028-04",3460,"140+40(배당금)",117,"-20(변동값) · +50(재투자) · +47(QLD)"],
- ["2028-05",3660,"150+50(배당금)",124,"-20(변동값) · +60(재투자) · +44(QLD)"],
- ["2028-06",3870,"150+60(배당금)",131,"-20(변동값) · +70(재투자) · +41(QLD)"],
- ["2028-07",4090,"160+70(배당금)",139,"-20(변동값) · +119(재투자)"],
- ["2028-08",4369,"160+119(배당금)",148,"-20(변동값) · +50(재투자) · +49(QLD)"],
- ["2028-09",4569,"150+50(배당금)",155,"FINISH · 포트폴리오 새로 구상"]
-];
-function loadPdfPlan(seed){
-  const now=seed?0:Date.now();
-  for(const [ym,principal,invest,expected,memo] of PDF_PLAN){
-    const id="plan-"+ym; S.deleted=S.deleted.filter(x=>x!==id);
-    const rec={id,ym,principal,invest,expected,memo,updated:now};
-    const i=S.plan.findIndex(p=>p.ym===ym); if(i>=0) S.plan[i]=Object.assign(S.plan[i],rec,{id:S.plan[i].id}); else S.plan.push(rec);
+// ---------- plan (월별 계획) ----------
+const planId=ym=>"plan-"+ym;
+function upsertPlan(rec){
+  const id=planId(rec.ym); S.deleted=S.deleted.filter(x=>x!==id);
+  const i=S.plan.findIndex(p=>p.ym===rec.ym), full=Object.assign({principal:0,invest:"",memo:""},rec,{updated:Date.now()});
+  if(i>=0) S.plan[i]=Object.assign(S.plan[i],full,{id:S.plan[i].id}); else S.plan.push(Object.assign({id},full));
+}
+const autoExpected=pr=>Math.floor(pr*(+S.settings.baseYield||0)/100*4);
+function splitCsv(line){ const out=[]; let cur="", q=false;
+  for(let i=0;i<line.length;i++){ const ch=line[i];
+    if(q){ if(ch==='"'&&line[i+1]==='"'){ cur+='"'; i++; } else if(ch==='"') q=false; else cur+=ch; }
+    else if(ch==='"') q=true; else if(ch===","){ out.push(cur); cur=""; } else cur+=ch; }
+  out.push(cur); return out; }
+// 한 줄 = 월, 원금(만), 투자, 예상 배당(만), 메모  (쉼표·탭 구분, 맨 윗줄 제목은 알아서 건너뛰어요)
+function parsePlanText(text){
+  const rows=[]; let skipped=0;
+  for(const raw of String(text).split(/\r?\n/)){ const line=raw.trim(); if(!line) continue;
+    const unq=x=>/^".*"$/.test(x)?x.slice(1,-1).replace(/""/g,'"'):x, c=(line.includes("\t")?line.split("\t").map(unq):splitCsv(line)).map(x=>x.trim());
+    const m=c[0].match(/^(\d{2,4})\s*[-./년]\s*(\d{1,2})/);
+    if(!m){ if(rows.length||skipped) skipped++; else skipped=0; continue; }
+    const y=+m[1]<100?2000+ +m[1]:+m[1], mo=+m[2]; if(mo<1||mo>12){ skipped++; continue; }
+    const num=v=>+String(v||"").replace(/[^\d.]/g,"")||0, principal=num(c[1]);
+    let expected=num(c[3]); if(!expected&&principal) expected=autoExpected(principal);
+    if(!expected){ skipped++; continue; }
+    rows.push({ym:ymOf(y,mo-1),principal,invest:c[2]||"",expected,memo:c.slice(4).join(", ")});
   }
-  S.settings.planSeeded=true;
+  return {rows,skipped};
+}
+function exportPlanCSV(){
+  const q=v=>{ const t=String(v??""); return /[",\n]/.test(t)?`"${t.replace(/"/g,'""')}"`:t; };
+  const rows=[...S.plan].sort((a,c)=>a.ym.localeCompare(c.ym)).map(p=>[p.ym,p.principal,p.invest||"",p.expected,p.memo||""].map(q).join(","));
+  saveFile(`배당계획_${todayStr()}.csv`,"\uFEFF"+["월,원금(만원),투자,예상 배당(만원),메모",...rows].join("\n"),"text/csv;charset=utf-8");
+}
+function planImportSheet(){
+  openSheet(`<h3>계획 불러오기</h3><p class="hint">엑셀·메모에서 복사해 붙여 넣거나 CSV 파일을 고르세요. 한 줄에 한 달, 순서는 <b>월, 원금(만원), 투자, 예상 배당(만원), 메모</b>예요. 예상 배당을 비우면 원금 × 기준 주배당 × 4로 계산해요.</p>
+    <textarea id="pit" rows="8" placeholder="2026-10, 670, 110+10, 22, 메모&#10;2026-11, 812, 130+12, 27" style="font-size:14px"></textarea>
+    <div class="btnrow" style="margin-top:8px"><button type="button" id="pif">CSV 파일 고르기</button></div><input type="file" id="pifile" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden>
+    <div class="calc" id="pipv" style="margin-top:8px"></div>
+    <div class="btnrow" style="margin-top:14px"><button class="ghost" id="picx">취소</button><button class="primary" id="pisv">불러오기</button></div>`,()=>{
+    const upd=()=>{ const r=parsePlanText($("#pit").value), dup=r.rows.filter(x=>S.plan.some(p=>p.ym===x.ym)).length;
+      $("#pipv").textContent=r.rows.length?`${r.rows.length}개월을 읽었어요${dup?` · 이미 있는 ${dup}개월은 덮어써요`:""}${r.skipped?` · ${r.skipped}줄은 건너뛰었어요`:""}`:($("#pit").value.trim()?"읽을 수 있는 줄이 없어요. 월(예: 2026-10)부터 적어 주세요.":""); };
+    $("#pit").addEventListener("input",upd);
+    $("#pif").onclick=()=>$("#pifile").click();
+    $("#pifile").onchange=ev=>{ const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ $("#pit").value=String(r.result).replace(/^\uFEFF/,""); upd(); }; r.readAsText(f); };
+    $("#picx").onclick=closeSheet;
+    $("#pisv").onclick=()=>{ const r=parsePlanText($("#pit").value); if(!r.rows.length){ toast("읽을 수 있는 줄이 없어요"); return; }
+      r.rows.forEach(upsertPlan); persist(); closeSheet(); toast(`${r.rows.length}개월 계획을 불러왔어요`); };
+  });
+}
+function planGenSheet(){
+  const now=new Date(), last=[...S.plan].sort((a,c)=>a.ym.localeCompare(c.ym)).pop(), pn=principalNow();
+  const startYm=last?(()=>{ const [y,m]=last.ym.split("-").map(Number); return m===12?ymOf(y+1,0):ymOf(y,m); })():ymOf(now.getFullYear(),now.getMonth());
+  const pr0=last?last.principal:(pn.v>0?Math.round(pn.v/10000):"");
+  openSheet(`<h3>계획 자동으로 만들기</h3><p class="hint">시작 원금과 매달 넣을 돈만 정하면 월별 계획을 만들어요. 금액은 만원이에요.</p>
+    <div class="grid2"><div><label class="f" for="gym">시작 월</label><input id="gym" type="month" value="${startYm}"></div>
+    <div><label class="f" for="gn">개월 수</label><input id="gn" type="number" inputmode="numeric" value="12" min="1" max="60"></div></div>
+    <div class="grid2"><div><label class="f" for="gpr">시작 원금</label><input id="gpr" type="number" inputmode="decimal" step="any" value="${pr0}"></div>
+    <div><label class="f" for="gin">매달 추가 투자</label><input id="gin" type="number" inputmode="decimal" step="any" value="0"></div></div>
+    <div class="grid2"><div><label class="f" for="gy">기준 주배당 (%)</label><input id="gy" type="number" inputmode="decimal" step="0.01" value="${S.settings.baseYield}"></div>
+    <div><label class="f" for="gre">배당 재투자 비율 (%)</label><input id="gre" type="number" inputmode="decimal" step="1" min="0" max="100" value="${S.settings.reinvestPct}"></div></div>
+    <div class="preview num" id="gpv" style="font-size:13px"></div>
+    <div class="btnrow" style="margin-top:14px"><button class="ghost" id="gcx">취소</button><button class="primary" id="gsv">만들기</button></div>`,()=>{
+    const rows=()=>{ const ym0=$("#gym").value, n=Math.min(60,Math.max(1,+$("#gn").value||0)), inv=+$("#gin").value||0, y=+$("#gy").value||0, re=Math.min(100,Math.max(0,+$("#gre").value||0))/100;
+      let pr=+$("#gpr").value||0; if(!/^\d{4}-\d{2}$/.test(ym0)||!(pr>0)||!(y>0)) return [];
+      let [yy,mm]=ym0.split("-").map(Number); mm--; const out=[]; let prevEx=0;
+      for(let i=0;i<n;i++){ const ex=Math.floor(pr*y/100*4), add=inv+(i?prevEx*re:0);
+        out.push({ym:ymOf(yy,mm),principal:Math.round(pr),expected:ex,invest:i?(inv?`${inv}`:"")+(prevEx*re>0?`${inv?"+":""}${Math.round(prevEx*re)}(배당금)`:""):(inv?`${inv}`:""),memo:""});
+        pr+=add; prevEx=ex; if(++mm>11){ mm=0; yy++; } }
+      return out; };
+    const upd=()=>{ const r=rows(), dup=r.filter(x=>S.plan.some(p=>p.ym===x.ym)).length, pv=$("#gpv");
+      pv.innerHTML=r.length?`${ymLabel(r[0].ym)} 원금 ${r[0].principal.toLocaleString()}만 → 예상 ${r[0].expected}만<br>${ymLabel(r[r.length-1].ym)} 원금 ${r[r.length-1].principal.toLocaleString()}만 → 예상 ${r[r.length-1].expected}만${dup?`<br>이미 있는 ${dup}개월은 덮어써요`:""}`:"시작 월·시작 원금·기준 주배당을 넣어 주세요"; };
+    $("#sheet").addEventListener("input",upd); upd();
+    $("#gcx").onclick=closeSheet;
+    $("#gsv").onclick=()=>{ const r=rows(); if(!r.length){ toast("시작 월·시작 원금·기준 주배당을 넣어 주세요"); return; }
+      const y=+$("#gy").value; if(y!==+S.settings.baseYield){ S.settings.baseYield=y; touchSettings(); }
+      r.forEach(upsertPlan); persist(); closeSheet(); toast(`${r.length}개월 계획을 만들었어요`); };
+  });
 }
 function planSheet(id){
   const p=id?S.plan.find(x=>x.id===id):null;
   const nextYm=(()=>{ const last=[...S.plan].map(x=>x.ym).sort().pop(); if(!last) return ymOf(new Date().getFullYear(),new Date().getMonth()); const [y,m]=last.split("-").map(Number); return m===12?ymOf(y+1,0):ymOf(y,m); })();
-  openSheet(`<h3>${p?ymLabel(p.ym)+" 계획 수정":"월 계획 추가"}</h3><p class="hint">금액 단위는 만원이에요.</p>
+  const lastP=[...S.plan].sort((a,c)=>a.ym.localeCompare(c.ym)).pop(), prevPr=lastP?lastP.principal:(principalNow().v>0?Math.round(principalNow().v/10000):"");
+  openSheet(`<h3>${p?ymLabel(p.ym)+" 계획 수정":"월 계획 추가"}</h3><p class="hint">금액 단위는 만원이에요.${p?"":" 직전 달 원금으로 미리 채워 뒀어요."}</p>
     <label class="f" for="pym">월</label><input id="pym" type="month" value="${p?p.ym:nextYm}">
-    <div class="grid2"><div><label class="f" for="ppr">원금 (만원)</label><input id="ppr" type="number" inputmode="numeric" value="${p?p.principal:""}"></div>
-    <div><label class="f" for="pex">예상 배당 (만원)</label><input id="pex" type="number" inputmode="decimal" step="any" value="${p?p.expected:""}"></div></div>
+    <div class="grid2"><div><label class="f" for="ppr">원금 (만원)</label><input id="ppr" type="number" inputmode="numeric" value="${p?p.principal:prevPr}"></div>
+    <div><label class="f" for="pex">예상 배당 (만원)</label><input id="pex" type="number" inputmode="decimal" step="any" value="${p?p.expected:(prevPr?autoExpected(prevPr):"")}"></div></div>
     <div class="btnrow" style="margin-top:8px"><button class="small ghost" id="pauto">원금 × ${S.settings.baseYield}% × 4로 계산</button></div>
     <div class="calc num" id="prate"></div>
     <label class="f" for="pin">투자 (예: 130+12(배당금))</label><input id="pin" value="${esc(p?p.invest:"")}">

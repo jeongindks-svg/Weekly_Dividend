@@ -249,7 +249,9 @@ function investCard(){
 function viewPlan(){
   const now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth()), b=basis(), inv=investMap();
   const plan=[...S.plan].sort((a,c)=>a.ym.localeCompare(c.ym));
-  if(!plan.length) return yearOverview()+`<section class="card"><div class="empty">아직 계획이 없어요.</div><div class="btnrow"><button id="pLoad">예상 배당금 계획 불러오기</button><button class="primary" id="pAdd">월 추가</button></div></section>`+investCard();
+  if(!plan.length) return `<section class="card"><h2>월별 계획</h2><div class="empty" style="padding-top:8px">아직 계획이 없어요.<br>시작 원금과 매달 넣을 돈만 정하면 자동으로 만들어 줘요.</div>
+    <div class="btnrow"><button class="primary" id="pGen">자동으로 만들기</button></div>
+    <div class="btnrow" style="margin-top:8px"><button id="pImp">붙여넣기·파일로 불러오기</button><button id="pAdd" class="ghost">한 달씩 추가</button></div></section>`+investCard();
   const cur=planOf(curYm), mr=new Map(monthRates().map(m=>[m.ym,m])), p2=v=>v.toFixed(2)+"%";
   const curCard = cur ? (()=>{ const a=actualYm(curYm,b), pr=planRate(cur), m=mr.get(curYm), ar=m&&m.rate!=null?m.rate:null;
     return `<section class="card hero2"><div class="k">${now.getMonth()+1}월 받은 배당 (세후)</div>
@@ -268,9 +270,9 @@ function viewPlan(){
   const chart=`<section class="card"><h2>예상 vs 실제</h2>${barChart({labels,values:acts,target:exps,labelEvery:Math.max(1,Math.ceil(plan.length/8))})}
     <div class="legend"><span><i style="background:var(--red)"></i>실제 배당</span><span><i style="background:var(--blue)"></i>예상 배당</span></div></section>`;
   const list=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">월별 계획 <small>눌러서 수정 · 단위 만원</small></h2>${rows}</section>`;
-  const btns=`<div class="btnrow" style="margin-bottom:14px"><button class="primary" id="pAdd">월 추가</button><button id="pLoad" class="ghost">계획표 다시 불러오기</button></div>`;
+  const btns=`<div class="btnrow" style="margin-bottom:14px"><button class="primary" id="pAdd">월 추가</button><button id="pGen" class="ghost">자동으로 만들기</button></div>`;
   const note=`<p class="muted" style="font-size:12px;margin:0 2px 12px">실제 배당은 세후 기준이에요. 계획이 세전 금액이면 달성률이 낮게 보일 수 있어요. 기준 주배당은 설정 탭에서 바꿔요.</p>`;
-  const clear=`<details class="help" style="margin:0 2px 12px"><summary>더 보기</summary><div class="btnrow" style="margin-top:8px"><button class="danger" id="pClear">계획 전체 삭제</button></div></details>`;
+  const clear=`<details class="help" style="margin:0 2px 12px"><summary>더 보기</summary><div class="btnrow" style="margin-top:8px"><button id="pImp">붙여넣기·파일로 불러오기</button><button id="pExp">CSV로 내보내기</button></div><div class="btnrow" style="margin-top:8px"><button class="danger" id="pClear">계획 전체 삭제</button></div></details>`;
   return curCard+yearOverview()+chart+list+btns+investCard()+note+clear;
 }
 
