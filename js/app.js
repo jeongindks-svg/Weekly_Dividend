@@ -31,7 +31,7 @@ function bindView(){
     persist(); render(); toast(ent?`미국 종목으로 바꿨어요. 원화로 저장된 배당 기록 ${ent}건은 기록 탭에서 통화를 확인해 주세요`:"미국 종목으로 바꿨어요. 종목을 눌러 매수 환율도 넣어 보세요"); refreshQuotes(true); });
   on("#keepKrw",()=>{ oddKrw().forEach(h=>{ h.krwOk=true; h.updated=Date.now(); }); persist(); render(); });
   on("#pAdd",()=>planSheet());
-  on("#pLoad",()=>{ if(S.plan.length && !confirm("PDF 계획(2026.9~2028.9)을 다시 불러올까요? 같은 달 계획은 PDF 내용으로 바뀌어요.")) return; loadPdfPlan(false); persist(); render(); toast("계획을 불러왔어요"); });
+  on("#pGen",planGenSheet); on("#pImp",planImportSheet); on("#pExp",exportPlanCSV);
   on("#pClear",()=>{ if(!confirm("계획을 모두 삭제할까요?")) return; S.plan.forEach(x=>markDeleted(x.id)); S.plan=[]; persist(); render(); });
   const py=v.querySelector("#pby"); if(py) py.onchange=()=>{ const n=+py.value; if(n>0){ S.settings.baseYield=n; touchSettings(); persist(); toast("기준 주배당을 저장했어요"); } };
   on("#refQ",async()=>{ toast("주가를 불러오는 중…"); if(await refreshQuotes(true)) toast("주가를 새로 불러왔어요"); });
@@ -88,7 +88,6 @@ function applySetupLink(){
 loadLocal();
 Drive.restore();
 const fromLink=applySetupLink();
-if(!S.settings.planSeeded && !S.plan.length){ loadPdfPlan(true); saveLocal(); }
 render();
 if(fromLink) toast("연결 정보를 넣었어요. ‘구글 계정 연결’을 눌러 로그인해 주세요");
 backgroundWork();
