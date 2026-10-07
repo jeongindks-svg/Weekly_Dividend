@@ -86,6 +86,10 @@ function applySetupLink(){
   return false;
 }
 loadLocal();
+try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
+// 이 기기의 저장 내용이 비어 있는데 이중 보관본에 기록이 남아 있으면 되살려요
+if(!hasData(S)) IDB.get().then(v=>{ try{ if(!v||hasData(S)) return; const o=JSON.parse(v); if(!hasData(o)) return;
+  const k=S.settings.tdKey; S=normalize(o); S.settings.tdKey=k||""; saveLocal(); render(); toast("이 기기에 남아 있던 백업에서 기록을 되살렸어요"); }catch(e){} });
 Drive.restore();
 const fromLink=applySetupLink();
 render();
@@ -95,7 +99,7 @@ backgroundWork();
 Drive.startAuto();
 if(Drive.linked()){ Drive.loadGIS().catch(()=>{}); Drive.sync(false); }
 window.addEventListener("online", ()=>{ backgroundWork(); if(Drive.linked()) Drive.sync(false); });
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Drive.linked()) Drive.sync(false); } });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Drive.linked()&&Date.now()-Drive.lastSync>2*60000) Drive.sync(false); } });
 
 // ---------- 서비스 워커 (오프라인·빠른 업데이트) ----------
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
