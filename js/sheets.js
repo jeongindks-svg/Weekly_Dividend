@@ -133,8 +133,9 @@ function holdSheet(id){
   const vU=c0?r2(c0.aU,4):"", vK=c0?r2(c0.aK,2):"", vW=h&&h.currency==="KRW"?(h.avgCost||""):"";
   let lots=(h&&h.lots?h.lots:[]).map(x=>Object.assign({},x));
   const hadLots=lots.length>0, prevFx=h&&+h.buyFx>0?+h.buyFx:0; // 환율을 안 적은 매수는 이 종목의 기존 평균 매수 환율로 계산해요
-  const derive=()=>{ const fxOf=l=>+l.fx||prevFx, sh=lots.reduce((a,l)=>a+l.shares,0), cp=lots.reduce((a,l)=>a+lotBase(l),0), allFx=lots.every(l=>fxOf(l)>0), ck=lots.reduce((a,l)=>a+lotBase(l)*fxOf(l),0);
-    return {sh, cp, avg:sh?cp/sh:0, avgK:allFx&&sh?ck/sh:0}; };
+  let scale=h&&+h.lotScale>0?+h.lotScale:1; // 증권사 평단과 맞추는 보정 비율 (수수료·소수점 차이)
+  const derive=()=>{ const fxOf=l=>+l.fx||prevFx, sh=lots.reduce((a,l)=>a+l.shares,0), cp0=lots.reduce((a,l)=>a+lotBase(l),0), allFx=lots.every(l=>fxOf(l)>0), ck0=lots.reduce((a,l)=>a+lotBase(l)*fxOf(l),0);
+    return {sh, raw:sh?cp0/sh:0, cp:cp0*scale, avg:sh?cp0*scale/sh:0, avgK:allFx&&sh?ck0*scale/sh:0}; };
   openSheet(`<h3>${h?"종목 수정":"종목 추가"}</h3>
     <label class="f" for="ht">티커 / 종목명</label><input id="ht" value="${esc(h?h.ticker:"")}" placeholder="예: SPYI, QQQI, YMAX" autocapitalize="characters">
     <div class="grid2"><div><label class="f" for="hs">보유 수량</label><input id="hs" type="number" inputmode="decimal" step="any" value="${h?h.shares:""}"></div>
@@ -151,6 +152,8 @@ function holdSheet(id){
       <div id="ltfw"><label class="f" for="ltf">매수 환율 (원/$, 선택)</label><input id="ltf" type="number" inputmode="decimal" step="any" placeholder="모르면 비워 두기"></div>
       <div class="btnrow" style="margin-top:8px"><button type="button" class="small" id="ladd">+ 매수 추가</button></div>
       <div class="calc num" id="hlsum" style="margin-top:8px"></div>
+      <div id="hovbox" hidden><label class="f" for="hov">증권사 앱 평단에 맞추기 (선택) <span class="hcur"></span></label><input id="hov" type="number" inputmode="decimal" step="any" placeholder="증권사 앱에 보이는 1주 평단">
+      <p class="calc" style="margin:4px 0 0">계산한 평단이 증권사 앱과 조금 다르면(수수료·소수점 등) 증권사 평단을 넣으세요. 모든 매수금액을 같은 비율로 보정해요. 비우면 보정을 풉니다.</p></div>
       <p class="calc" style="margin:6px 0 0">총 매수금액은 그 수량을 산 전체 가격이에요. 1주 평단은 자동으로 계산돼요. 추가로 산 날짜별로 적으면 그 시점의 원금으로 배당률을 계산해요. 배당으로 재투자해서 산 것도 매수로 적어 주세요.</p></div>
     <div class="preview num" id="hpv" style="font-size:13px"></div>
     <div class="grid2"><div><label class="f" for="hm">현재가 직접 입력 <span class="hcur"></span></label><input id="hm" type="number" inputmode="decimal" step="any" value="${h&&h.manualPrice?h.manualPrice:""}" placeholder="자동이면 비워 두기"></div>
@@ -160,9 +163,12 @@ function holdSheet(id){
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#hak","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
         $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
-        const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
+        const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중 (기록상 평단 ${us?"$"+fmtPs(+ds.raw.toFixed(4)):won(ds.raw)})`:""}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
+        $("#hovbox").hidden=!lots.length; if(document.activeElement!==$("#hov")) $("#hov").value=scale!==1?r4(ds.avg,4):"";
         const d=derive(), on=lots.length>0; mine.forEach(i=>$(i).readOnly=on);
         if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
+      $("#hov").addEventListener("input",()=>{ const v=+$("#hov").value, raw=derive().raw; scale=v>0&&raw>0?v/raw:1;
+        const ds=derive(); $("#hlsum").innerHTML=`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 1주 평단 ${cur!=="KRW"?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중`:""}`; if(cur!=="KRW"){ $("#hau").value=r4(ds.avg,4); $("#hak").value=ds.avgK?r4(ds.avgK,2):""; } else $("#haw").value=r4(ds.avg,2); });
       $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"), e=ev.target.closest("[data-le]");
         if(b){ lots=lots.filter(l=>l.id!==b.dataset.ld); drawLots(); upd(); }
         else if(e){ const l=lots.find(x=>x.id===e.dataset.le); if(!l) return; lots=lots.filter(x=>x!==l);
@@ -193,7 +199,7 @@ function holdSheet(id){
         const d0=derive(), t=$("#ht").value.trim().toUpperCase(), sh=lots.length?d0.sh:+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
         if(h&&lots.length&&!hadLots&&Math.abs(d0.sh-h.shares)>1e-6&&!confirm(`매수 기록의 합계는 ${d0.sh}주인데 지금 보유 수량은 ${h.shares}주예요.\n저장하면 보유 수량이 ${d0.sh}주로 바뀌어요. 계속할까요?`)) return;
-        const rec={ticker:t,shares:sh,lots,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
+        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
         if(cur==="KRW"){ Object.assign(rec,{avgCost:lots.length?d0.avg:(+$("#haw").value||0),avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
         else { const aU=lots.length?d0.avg:(+$("#hau").value||0), aK=lots.length?d0.avgK:(+$("#hak").value||0); Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }
         if(h) Object.assign(h,rec); else S.holdings.push(Object.assign({id:uid()},rec));
