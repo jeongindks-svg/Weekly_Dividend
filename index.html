@@ -696,6 +696,15 @@ function rateView(){
   const ms=monthRates().slice(-12).reverse();
   const trs=ms.map(m=>{ const p=planOf(m.ym), pr=p?planRate(p):null, d=pr!=null&&m.rate!=null?m.rate-pr:null;
     return `<tr><td class="l"><b>${ymLabel(m.ym)}</b> <span class="muted" style="font-size:11px">${m.weeks}주</span></td><td>${man(m.principal)}${m.plan?"":"*"}</td><td>${pr!=null?p2(pr):"-"}</td><td class="${m.rate!=null?"amt":""}">${m.rate!=null?p2(m.rate):"-"}</td><td class="${d!=null?cls(d):""}">${d!=null?(d>0?"+":"")+d.toFixed(2)+"%p":"-"}</td></tr>`; }).join("");
+  // 월 × 주차 한눈에 보기 (최근 52주)
+  const w52=weekRates(52), f52=w52.findIndex(w=>w.amt>0), gw=f52>=0?w52.slice(f52):[], mm=new Map(monthRates().map(m=>[m.ym,m]));
+  const gm=new Map(); for(const w of gw){ if(!gm.has(w.ym)) gm.set(w.ym,[]); gm.get(w.ym).push(w); }
+  const heat=r=>r==null||!(r>0)?"":(base>0?(r>=base?"up":"down"):"");
+  const grows=[...gm].reverse().map(([ym,arr])=>{ const m=mm.get(ym);
+    const cells=Array.from({length:5},(_,i)=>{ const w=arr[i]; return `<td class="${w&&w.amt>0?heat(w.rate):"muted"}">${w&&w.amt>0&&w.rate!=null?w.rate.toFixed(2):"-"}</td>`; }).join("");
+    return `<tr><td class="l"><b>${ymLabel(ym)}</b></td>${cells}<td class="${m&&m.rate!=null?"amt":"muted"}">${m&&m.rate!=null?p2(m.rate):"-"}</td></tr>`; }).join("");
+  const grid=grows?`<section class="card" style="padding:0"><h2 style="padding:14px 16px 0">월 × 주차 한눈에 보기 <small>${basisName()} · 원금 대비 %${base>0?` · 기준 ${base}%`:""}</small></h2>
+    <div class="tbl"><table><thead><tr><th class="l">월</th><th>1주</th><th>2주</th><th>3주</th><th>4주</th><th>5주</th><th>평균</th></tr></thead><tbody>${grows}</tbody></table></div></section>`:"";
   const sub=t=>`<div class="muted" style="font-size:12px">${t}</div>`;
   return `
   <section class="stats">
@@ -704,6 +713,7 @@ function rateView(){
     <div class="stat"><div class="k">연 환산 (×52주)</div><div class="v num">${rr.rate!=null?(rr.rate*52).toFixed(1)+"%":"-"}</div>${sub("원금 대비")}</div>
     <div class="stat"><div class="k">최고 / 최저 주</div><div class="v num">${hi!=null?p2(hi)+" / "+p2(lo):"-"}</div>${sub(`최근 ${vs.length}주 중`)}</div>
   </section>
+  ${grid}
   <section class="card"><h2>주별 주배당률 <small>${basisName()} · 원금 대비</small></h2>${lineChart({labels,series,fmt:p2,labelEvery:Math.max(1,Math.ceil(ws.length/6))})}
     <div class="legend"><span><i style="background:var(--red)"></i>그 주 받은 배당 ÷ 원금</span>${base>0?`<span><i style="background:var(--blue)"></i>기준 ${base}%</span>`:""}</div></section>
   <section class="card"><h2>월별 주배당률 <small>배당 기록한 주 기준</small></h2>
