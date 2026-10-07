@@ -85,30 +85,17 @@ function viewLog(){
       rows+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
         return `<tr data-edit="${e.id}"><td><b>${esc(e.ticker)}</b><div class="s">${fmtD(d)} (${DOW[d.getDay()]})</div></td><td>${u?"$"+fmtPs(e.perShare):won(e.perShare)}</td><td>${qty(e.shares)}</td><td class="amt">${won(c.netKRW)}</td><td>${c.yield!=null?c.yield.toFixed(2)+"%":"-"}</td></tr>`; }).join("");
     }
-    return seg+`<div class="card" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>주당</th><th>수량</th><th>세후(원)</th><th>배당률</th></tr></thead><tbody>${rows}</tbody></table></div></div>
-      <p class="muted" style="font-size:12px;margin:8px 2px 0">표를 옆으로 밀면 더 볼 수 있어요. 행을 누르면 수정돼요.</p>`+add;
+    return seg+`<div class="card" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>주당</th><th>수량</th><th>세후(원)</th><th>배당률</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+add;
   }
   let html=seg;
   for(const [k,arr] of groups){
     const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0);
-    html+=`<section class="card wcard"><div class="wcard-h"><div><div class="wt">${weekLabel(k,true)}</div><div class="wr">${range(k)} · ${arr.length}건</div></div><div class="ws num">${won(sum)}</div></div>`;
-    const days=new Map(); for(const e of arr){ if(!days.has(e.date)) days.set(e.date,[]); days.get(e.date).push(e); }
-    for(const [d,es] of days){
-      const same=f=>es.every(x=>String(x[f])===String(es[0][f]));
-      const us=es.filter(x=>x.currency!=="KRW"), taxC=same("taxRate"), fxC=us.length>0&&us.every(x=>x.fx===us[0].fx), pend=us.some(x=>x.fxPending);
-      const dd=parseD(d), pills=[];
-      if(taxC) pills.push(`세금 ${es[0].taxRate}%`);
-      if(fxC) pills.push(`환율 ${us[0].fx.toLocaleString()}원${pend?" (반영 대기)":""}`);
-      html+=`<div class="dgroup"><div class="dh"><span class="d">${fmtD(dd)} (${DOW[dd.getDay()]})</span>${pills.map(t=>`<span class="pill num">${t}</span>`).join("")}</div>`;
-      html+=es.map(e=>{ const c=calc(e), u=e.currency!=="KRW";
-        const y = c.yield!=null ? `<span class="yield num">${c.yield.toFixed(2)}%</span>` : (u&&S.settings.tdKey&&!e.priceFail?`<span class="yield">주가 불러오는 중</span>`:"");
-        const extra=[]; if(!taxC) extra.push(`세금 ${e.taxRate}%`); if(u&&!fxC) extra.push(`환율 ${e.fx}${e.fxPending?" (반영 대기)":""}`); if(e.memo) extra.push(esc(e.memo));
-        return `<div class="ent" data-edit="${e.id}"><div class="av" aria-hidden="true">${esc(e.ticker.slice(0,3))}</div>
-          <div class="m"><div class="tk">${esc(e.ticker)}</div>
-          <div class="sb num">${u?"$"+fmtPs(e.perShare):won(e.perShare)} × ${qty(e.shares)}주${extra.length?" · "+extra.join(" · "):""}</div>${y}</div>
-          <div class="am"><div class="a num">${won(c.netKRW)}</div>${u?`<div class="u num">${usd(c.net)}</div>`:""}</div></div>`; }).join("");
-      html+=`</div>`;
-    }
+    html+=`<div class="gh2"><span>${weekLabel(k,true)} <span class="muted">${range(k)}</span></span><b class="num">${won(sum)}</b></div><section class="card" style="padding:4px 16px">`;
+    html+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
+      const sub=[`${fmtD(d)}(${DOW[d.getDay()]})`,`${u?"$"+fmtPs(e.perShare):won(e.perShare)} × ${qty(e.shares)}주`]; if(u&&e.fxPending) sub.push("환율 대기"); if(e.memo) sub.push(esc(e.memo));
+      return `<div class="hl" data-edit="${e.id}"><div class="av" aria-hidden="true">${esc(e.ticker.slice(0,3))}</div>
+        <div class="m"><div class="t">${esc(e.ticker)}</div><div class="s num">${sub.join(" · ")}</div></div>
+        <div class="rt"><div class="t num">${won(c.netKRW)}</div><div class="s num muted">${c.yield!=null?c.yield.toFixed(2)+"%":(u&&S.settings.tdKey&&!e.priceFail?"…":"")}</div></div></div>`; }).join("");
     html+=`</section>`;
   }
   return html+add;
@@ -186,7 +173,7 @@ function viewChart(){
   let startG=startM; while(startG<cm && !(goals[startG]>0)) startG++;
   let goalToDate=0; for(let i=startG;i<cm;i++) goalToDate+=goals[i]; goalToDate+=goals[cm]*now.getDate()/dim;
   const actToDate=months.slice(startG,cm+1).reduce((a,v)=>a+v,0);
-  const goalCard = hasGoal ? `<section class="card"><h2>목표 대비 <small>${basisName()} 기준</small></h2>
+  const goalCard = hasGoal ? `<section class="card"><h2>목표 대비</h2>
     <div class="stats" style="margin:0">
       <div class="stat"><div class="k">${cm+1}월</div><div class="v num">${goals[cm]?Math.round(months[cm]/goals[cm]*100)+"%":"-"}</div><div class="s" style="font-size:12px">${won(months[cm])} / ${won(goals[cm])}</div></div>
       <div class="stat"><div class="k">${startG===cm?"이번 달 지금까지":(startG+1)+"월부터 지금까지"}</div><div class="v num">${goalToDate?Math.round(actToDate/goalToDate*100):0}%</div><div class="s" style="font-size:12px">${won(actToDate)} / ${won(goalToDate)}</div></div>
@@ -194,13 +181,13 @@ function viewChart(){
     : `<section class="card"><div class="muted">계획 탭에서 <b>월별 목표</b>를 정하면 받은 금액과 목표를 그래프로 비교할 수 있어요.</div><div class="btnrow" style="margin-top:10px"><button id="goPlan">계획 탭으로</button></div></section>`;
   let body="";
   if(chartMode==="month"){
-    body=`<section class="card"><h2>${y}년 월별 배당 <small>${basisName()}</small></h2>${barChart({labels:months.map((_,i)=>(i+1)+"월"),values:months,target:hasGoal?goals:0})}
+    body=`<section class="card"><h2>${y}년 월별 배당 </h2>${barChart({labels:months.map((_,i)=>(i+1)+"월"),values:months,target:hasGoal?goals:0})}
       <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>그달 목표</span><span>흐린 막대: 목표 미달</span>`:""}</div></section>`;
   } else if(chartMode==="week"){
     const wk=new Map(); for(const e of S.entries){ const k=weekKey(e.date); wk.set(k,(wk.get(k)||0)+amtOf(e,b)); }
     const m0=monday(now), labels=[], vals=[], tg=[];
     for(let i=15;i>=0;i--){ const m=new Date(m0); m.setDate(m.getDate()-7*i); const k=isoOf(m); labels.push(weekLabel(k).replace("주차","주")); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
-    body=`<section class="card"><h2>최근 16주 <small>${basisName()}</small></h2>${barChart({labels,values:vals,target:hasGoal?tg:0,labelEvery:3})}
+    body=`<section class="card"><h2>최근 16주 </h2>${barChart({labels,values:vals,target:hasGoal?tg:0,labelEvery:3})}
       <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>주간 목표 (월 목표×12÷52)</span>`:""}</div></section>`;
   } else {
     const labels=[], act=[], tgt=[]; let run=0, trun=0;
@@ -235,13 +222,11 @@ function yearOverview(){
       if(ym===curYm) c+=" now";
       grid+=`<div class="${c}" style="${st}" title="${y}년 ${i+1}월 · 받은 배당 ${won(a)}${g?` / 목표 ${won(g)}`:""}${inv[ym]?` · 투자 ${inv[ym]}만원`:""}">${txt}</div>`;
     }
-    rows.push(`<tr${y===cy?' class="cur"':""}><td class="l"><b>${y}</b></td><td>${gS?man(gS):"-"}</td><td class="${aS?"amt":""}">${aS?man(aS):"-"}</td><td class="${gS&&y<=cy?(aS>=gS?"up":"down"):""}">${gS&&y<=cy?Math.round(aS/gS*100)+"%":"-"}</td><td>${iS?hz(iS.toLocaleString("ko-KR",{maximumFractionDigits:1})):"-"}</td></tr>`);
+    rows.push(`<div class="lrow"><div><div class="t">${y}년</div><div class="s num">${gS?`목표 ${man(gS)}만 · `:""}받은 배당 ${aS?man(aS)+"만":"-"}${iS?` · 투자 ${hz(iS.toLocaleString("ko-KR",{maximumFractionDigits:1}))}만`:""}</div></div><div class="r"><div class="p ${gS&&y<=cy?(aS>=gS?"up":"down"):""}" style="font-size:16px">${gS&&y<=cy?Math.round(aS/gS*100)+"%":"-"}</div></div></div>`);
   }
-  return `<section class="card full"><h2>연도별 한눈에 <small>${basisName()} 기준</small></h2>
+  return `<section class="card full"><h2>연도별 한눈에 <small>칸 = 그달 목표 달성률(%)</small></h2>
     <div class="ygrid">${grid}</div>
-    <p class="muted" style="font-size:12px;margin:8px 0 12px">칸 숫자는 그달 목표 대비 달성률(%)이에요. 빨간 칸은 목표 달성, 점선 칸은 아직 오지 않은 달이에요.</p>
-    <div class="tbl"><table><thead><tr><th class="l">연도</th><th>연 목표</th><th>받은 배당</th><th>달성</th><th>투자금</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
-    <p class="muted" style="font-size:12px;margin:6px 0 0">금액 단위: 만원</p></section>`;
+    <div style="margin-top:10px">${rows.join("")}</div></section>`;
 }
 function investSumTxt(){
   const inv=investMap(), y=investYear; let yS=0, all=0;
@@ -262,97 +247,89 @@ function investCard(){
     <p class="muted" style="font-size:12px;margin:4px 0 0">그달 실제로 넣은 돈을 적으면 바로 저장돼요. 비우면 지워져요.</p></section>`;
 }
 function viewPlan(){
-  const now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth()), b=basis(), st=S.settings, inv=investMap(), wide=isWide();
+  const now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth()), b=basis(), inv=investMap();
   const plan=[...S.plan].sort((a,c)=>a.ym.localeCompare(c.ym));
-  const head=`<section class="card"><h2>배당 계획 <small>단위: 만원</small></h2>
-    <div class="grid2"><div><label class="f" for="pby">기준 주배당 (%)</label><input id="pby" type="number" inputmode="decimal" step="0.01" value="${st.baseYield}"></div>
-    <div><label class="f">배당 비교 기준</label><div class="seg tall" id="pbasis"><button data-b="gross" aria-pressed="${b==="gross"}">세전</button><button data-b="net" aria-pressed="${b==="net"}">세후</button></div></div></div>
-    <p class="muted" style="margin:10px 0 0">주배당은 원금 대비 한 주 기준이에요. 월 예상 배당 = 원금 × 주배당 × 4주. 계획은 보통 분배율 기준이라 세전 비교를 권해요.</p></section>`;
-  if(!plan.length) return head+yearOverview()+`<section class="card"><div class="empty">아직 계획이 없어요.</div><div class="btnrow"><button id="pLoad">예상 배당금 계획 불러오기</button><button class="primary" id="pAdd">월 추가</button></div></section>`+investCard();
-  const cur=planOf(curYm), P=portfolio(), mr=new Map(monthRates().map(m=>[m.ym,m])), p2=v=>v.toFixed(2)+"%";
+  if(!plan.length) return yearOverview()+`<section class="card"><div class="empty">아직 계획이 없어요.</div><div class="btnrow"><button id="pLoad">예상 배당금 계획 불러오기</button><button class="primary" id="pAdd">월 추가</button></div></section>`+investCard();
+  const cur=planOf(curYm), mr=new Map(monthRates().map(m=>[m.ym,m])), p2=v=>v.toFixed(2)+"%";
   const curCard = cur ? (()=>{ const a=actualYm(curYm,b), pr=planRate(cur), m=mr.get(curYm), ar=m&&m.rate!=null?m.rate:null;
-    return `<section class="card hero"><div class="label">${now.getMonth()+1}월 계획 · ${basisName()} 기준</div>
-    <div class="big num">${man(a)}<span style="font-size:18px;color:var(--muted)"> / ${hz(cur.expected)}만원</span></div>
-    <div class="bar"><span style="width:${Math.min(100,a/(cur.expected*10000)*100)}%"></span></div>
-    <div class="stats" style="margin:14px 0 0">
-      <div class="stat"><div class="k">계획 원금</div><div class="v num">${hz(cur.principal.toLocaleString())}만</div></div>
-      <div class="stat"><div class="k">현재 평가액</div><div class="v num ${P.tVal/10000>=cur.principal?"up":"down"}">${P.tVal?man(P.tVal)+"만":"-"}</div></div>
-      <div class="stat"><div class="k">계획 주배당률 (원금 대비)</div><div class="v num">${pr!=null?p2(pr):"-"}</div></div>
-      <div class="stat"><div class="k">실제 주배당률 (이번 달)</div><div class="v num ${pr!=null&&ar!=null?(ar>=pr?"up":"down"):""}">${ar!=null?p2(ar):"-"}</div></div>
-    </div>${cur.memo?`<p class="muted" style="margin:10px 0 0">${hz(esc(cur.memo))}</p>`:""}</section>`; })() : "";
+    return `<section class="card hero2"><div class="k">${now.getMonth()+1}월 받은 배당 (세후)</div>
+    <div class="big num">${man(a)}<span style="font-size:18px;color:var(--muted);font-weight:500"> / ${hz(cur.expected)}만원</span></div>
+    <div class="bar" style="margin:-4px 0 14px"><span style="width:${Math.min(100,a/(cur.expected*10000)*100)}%"></span></div>
+    <div class="mini"><div><div class="k">계획 원금</div><div class="v num">${hz(cur.principal.toLocaleString())}만</div></div>
+    <div><div class="k">계획 주배당</div><div class="v num">${pr!=null?p2(pr):"-"}</div></div>
+    <div><div class="k">실제 주배당</div><div class="v num ${pr!=null&&ar!=null?(ar>=pr?"up":"down"):""}">${ar!=null?p2(ar):"-"}</div></div></div>
+    ${cur.memo?`<p class="muted" style="margin:12px 0 0">${hz(esc(cur.memo))}</p>`:""}</section>`; })() : "";
   const labels=plan.map(p=>ymLabel(p.ym)), acts=plan.map(p=>p.ym<=curYm?actualYm(p.ym,b):0), exps=plan.map(p=>p.expected*10000);
-  const rows=plan.map(p=>{ const a=actualYm(p.ym,b), past=p.ym<=curYm, r=p.expected?a/(p.expected*10000)*100:0, pr=planRate(p), m=mr.get(p.ym), ar=past&&m&&m.rate!=null?m.rate:null;
-    return `<tr data-plan="${p.id}"${p.ym===curYm?' class="cur"':""}><td class="l"><b>${ymLabel(p.ym)}</b></td><td>${hz(p.principal.toLocaleString())}</td><td class="l">${hz(esc(p.invest||""))}</td><td>${inv[p.ym]?hz(inv[p.ym].toLocaleString("ko-KR",{maximumFractionDigits:1})):"-"}</td><td>${hz(p.expected)}</td><td class="amt">${past?man(a):"-"}</td><td class="${past?(r>=100?"up":"down"):""}">${past&&p.expected?Math.round(r)+"%":"-"}</td><td>${pr!=null?p2(pr):"-"}</td><td class="${ar!=null&&pr!=null?(ar>=pr?"up":"down"):""}">${ar!=null?p2(ar):"-"}</td><td class="l muted" style="white-space:normal;min-width:150px">${hz(esc(p.memo||""))}</td></tr>`; }).join("");
-  const chart=`<section class="card"><h2>예상 vs 실제 <small>${basisName()}</small></h2>${barChart({labels,values:acts,target:exps,labelEvery:Math.max(1,Math.ceil(plan.length/8))})}
+  const rowOf=p=>{ const a=actualYm(p.ym,b), past=p.ym<=curYm, exp=p.expected*10000, r=exp?a/exp*100:0, isCur=p.ym===curYm;
+    return `<div class="hl${isCur?" cur":""}" data-plan="${p.id}"><div class="m"><div class="t">${ymLabel(p.ym)}</div><div class="s num">원금 ${hz(p.principal.toLocaleString())}만${p.invest?` · ${hz(esc(p.invest))}`:""}</div></div>
+      <div class="rt"><div class="t num">${past?man(a):"-"}<span class="muted" style="font-weight:400"> / ${hz(p.expected)}만</span></div><div class="s num ${past&&exp?(r>=100?"up":"down"):"muted"}">${past&&exp?Math.round(r)+"%":"예정"}</div></div></div>`; };
+  const ci=Math.max(0,plan.findIndex(p=>p.ym>=curYm)-1), shown=plan.slice(ci,ci+12), rest=plan.filter(p=>!shown.includes(p));
+  const rows=shown.map(rowOf).join("")+(rest.length?`<details class="help" style="margin:4px 0 10px"><summary>나머지 ${rest.length}개월 보기</summary>${rest.map(rowOf).join("")}</details>`:"");
+  const chart=`<section class="card"><h2>예상 vs 실제</h2>${barChart({labels,values:acts,target:exps,labelEvery:Math.max(1,Math.ceil(plan.length/8))})}
     <div class="legend"><span><i style="background:var(--red)"></i>실제 배당</span><span><i style="background:var(--blue)"></i>예상 배당</span></div></section>`;
-  const table=`<section class="card full" style="padding:0"><div class="tbl"><table><thead><tr><th class="l">월</th><th>원금</th><th class="l">투자 계획</th><th>실제 투자</th><th>예상</th><th>실제</th><th>달성</th><th>계획 주배당</th><th>실제 주배당</th><th class="l">메모</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
-  const note=`<p class="muted" style="font-size:12px;margin:-6px 2px 12px">행을 누르면 그달 계획을 고칠 수 있어요. 주배당은 원금 대비 한 주 배당률이에요.</p>`;
-  const btns=`<div class="btnrow" style="margin-bottom:14px"><button class="primary" id="pAdd">월 추가</button><button id="pLoad">PDF 계획 다시 불러오기</button></div>`;
-  const clear=`<div class="btnrow" style="margin-top:8px"><button class="danger" id="pClear">계획 전체 삭제</button></div>`;
-  // 넓은 화면에서는 투자금 카드를 그래프 옆에 두어 한 화면에 더 많이 보이게
-  return wide ? head+curCard+yearOverview()+chart+investCard()+table+note+btns+clear
-              : head+curCard+yearOverview()+chart+table+note+btns+investCard()+clear;
+  const list=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">월별 계획 <small>눌러서 수정 · 단위 만원</small></h2>${rows}</section>`;
+  const btns=`<div class="btnrow" style="margin-bottom:14px"><button class="primary" id="pAdd">월 추가</button><button id="pLoad" class="ghost">계획표 다시 불러오기</button></div>`;
+  const note=`<p class="muted" style="font-size:12px;margin:0 2px 12px">실제 배당은 세후 기준이에요. 계획이 세전 금액이면 달성률이 낮게 보일 수 있어요. 기준 주배당은 설정 탭에서 바꿔요.</p>`;
+  const clear=`<details class="help" style="margin:0 2px 12px"><summary>더 보기</summary><div class="btnrow" style="margin-top:8px"><button class="danger" id="pClear">계획 전체 삭제</button></div></details>`;
+  return curCard+yearOverview()+chart+list+btns+investCard()+note+clear;
 }
 
 function viewSet(){
   const st=S.settings;
+  const num=(id,label,val,step,ph="")=>`<div class="srow"><label for="${id}">${label}</label><input id="${id}" type="number" inputmode="decimal" step="${step}" value="${val}" placeholder="${ph}"></div>`;
   return `
-  <section class="card"><h2>화면</h2>
-    <div class="row" style="padding-top:0"><div class="l"><div class="t">금액 숨기기</div><div class="s">모든 화면의 금액과 수량을 ••• 로 가려요. 이 기기에만 적용돼요. 위쪽 눈 모양 버튼으로도 바꿀 수 있어요.</div></div>
-      <div class="r"><div class="seg" id="hideSeg" style="width:140px"><button data-h="0" aria-pressed="${!HIDE}">보이기</button><button data-h="1" aria-pressed="${HIDE}">숨기기</button></div></div></div>
+  <div class="gh">화면</div>
+  <section class="card" style="padding:4px 16px">
+    <div class="srow"><div><div class="t">금액 숨기기</div><div class="s">모든 금액·수량을 가려요. 이 기기에만 적용돼요.</div></div>
+      <div class="seg" id="hideSeg" style="width:132px"><button data-h="0" aria-pressed="${!HIDE}">보이기</button><button data-h="1" aria-pressed="${HIDE}">숨기기</button></div></div>
   </section>
-  <section class="card"><h2>목표</h2>
-    <label class="f" for="sgoal">기본 월 목표 (계획이 없는 달, 원)</label><input id="sgoal" type="number" inputmode="numeric" step="1000" value="${st.goalMonthly||""}" placeholder="예: 500000">
-    <p class="muted" style="margin:8px 0 0">달마다 다른 목표는 <b>계획</b> 탭에서 정해요.</p>
-    <div class="btnrow" style="margin-top:10px"><button id="goPlan">월별 목표·계획 보기</button></div>
+  <div class="gh">목표 · 수익률</div>
+  <section class="card" style="padding:4px 16px">
+    ${num("sgoal","기본 월 목표 (원)",st.goalMonthly||"","1000","예: 500000")}
+    ${num("pby","기준 주배당 (%)",st.baseYield,"0.01")}
+    ${num("srp","배당 재투자 비율 (%)",st.reinvestPct,"1")}
+    ${num("sda","배당 변동 알림 기준 (%)",st.divAlertPct,"1")}
+    <details class="help" style="margin:0 0 10px"><summary>이 값들이 쓰이는 곳</summary><p style="margin:6px 0 0">기본 월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에 써요. 재투자 비율은 보유 탭의 총수익률(내가 넣은 돈 기준)에, 알림 기준은 요약 탭의 배당 변동 알림에 써요. 달마다 다른 목표는 계획 탭에서 정해요.</p></details>
   </section>
-  <section class="card"><h2>수익률·알림</h2>
-    <div class="grid2"><div><label class="f" for="srp">배당 재투자 비율 (%)</label><input id="srp" type="number" inputmode="decimal" step="1" min="0" max="100" value="${st.reinvestPct}"></div>
-    <div><label class="f" for="sda">배당 변동 알림 기준 (%)</label><input id="sda" type="number" inputmode="decimal" step="1" min="1" value="${st.divAlertPct}"></div></div>
-    <p class="muted" style="margin:8px 0 0">받은 배당을 얼마나 다시 투자하는지 넣으면, 보유 탭의 총수익률이 ‘내가 넣은 돈’ 기준으로 계산돼요. 알림 기준은 최근 지급이 이전 평균보다 이만큼 이상 달라질 때 요약 탭에 표시해요.</p>
+  <div class="gh">환율 · 세금</div>
+  <section class="card" style="padding:4px 16px">
+    <div class="srow"><div><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신 · `:""}배당은 입금일 환율로 계산해요</div></div><button class="small" id="fxRef">새로고침</button></div>
+    <div class="srow"><label for="sauto">환율 자동 연동</label><input type="checkbox" id="sauto" style="width:22px;height:22px" ${st.autoFx?"checked":""}></div>
+    <div id="manualFx" ${st.autoFx?"hidden":""}>${num("sfx","직접 입력 환율",st.fx,"0.01")}</div>
+    ${num("stu","미국 배당세 (%)",st.taxUS,"0.1")}
+    ${num("stk","국내 배당세 (%)",st.taxKR,"0.1")}
+    <div class="btnrow" style="margin:6px 0 12px"><button class="primary" id="saveSet">저장</button></div>
   </section>
-  <section class="card"><h2>환율 <small>${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신`:""}</small></h2>
-    <div class="row" style="padding-top:0"><div class="l"><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">배당 기록은 입금일 환율이 자동으로 적용돼요</div></div><div class="r"><button class="small" id="fxRef">새로고침</button></div></div>
-    <label class="chk" style="font-weight:500;margin-top:6px"><input type="checkbox" id="sauto" ${st.autoFx?"checked":""}> 환율 자동 연동 (끄면 직접 입력)</label>
-    <div id="manualFx" ${st.autoFx?"hidden":""}><label class="f" for="sfx">직접 입력 환율</label><input id="sfx" type="number" inputmode="decimal" step="0.01" value="${st.fx}"></div>
-    <div class="grid2">
-      <div><label class="f" for="stu">미국 배당세 (%)</label><input id="stu" type="number" inputmode="decimal" step="0.1" value="${st.taxUS}"></div>
-      <div><label class="f" for="stk">국내 배당세 (%)</label><input id="stk" type="number" inputmode="decimal" step="0.1" value="${st.taxKR}"></div>
-    </div>
-    <div class="btnrow" style="margin-top:14px"><button class="primary" id="saveSet">저장</button></div>
-  </section>
-  <section class="card"><h2>주가 자동 연동 <small>${st.tdKey?"연결됨":"미연결"}</small></h2>
-    <label class="f" for="std">Twelve Data API 키 (무료) <span class="muted">· 이 기기에만 저장돼요</span></label><input id="std" value="${esc(st.tdKey)}" placeholder="키를 붙여 넣으세요" autocomplete="off" spellcheck="false">
+  <div class="gh">연동</div>
+  <section class="card">
+    <h2>주가 <small>${st.tdKey?"연결됨":"미연결"}</small></h2>
+    <input id="std" value="${esc(st.tdKey)}" placeholder="Twelve Data API 키를 붙여 넣으세요" autocomplete="off" spellcheck="false" aria-label="Twelve Data API 키">
     <div class="btnrow" style="margin-top:10px"><button id="tdSave" class="primary">키 저장 · 테스트</button></div>
-    <details class="help"><summary>무료 키 받는 법</summary><ol>
-      <li>twelvedata.com 에서 무료 가입(Basic, 카드 불필요)</li><li>로그인 후 대시보드의 API Keys에서 키 복사</li><li>위 칸에 붙여 넣고 저장</li></ol>
-      키는 구글 동기화와 백업 파일에 들어가지 않아서, 다른 기기에서는 따로 넣어야 해요. 공유 기기에서는 쓰고 나서 키를 지워 주세요. 미국 주식·ETF의 현재가와 입금일 종가가 자동으로 들어와요. 무료는 하루 800회, 분당 8회까지라 종목이 많으면 천천히 채워져요. 국내 종목은 보유 탭에서 현재가를 직접 넣어 주세요.</details>
+    <details class="help"><summary>키 받는 법 · 보관 방식</summary><ol>
+      <li>twelvedata.com 에서 무료 가입 (카드 불필요)</li><li>대시보드 API Keys에서 키 복사</li><li>위 칸에 붙여 넣고 저장</li></ol>
+      키는 이 기기에만 저장돼요. 구글 동기화와 백업 파일에는 들어가지 않아서 다른 기기에서는 따로 넣어야 해요. 공유 기기에서는 쓰고 나서 지워 주세요. 무료는 하루 800회, 분당 8회까지예요. 국내 종목은 보유 탭에서 현재가를 직접 넣어 주세요.</details>
   </section>
-  <section class="card"><h2>구글 계정 연동 <small>${st.gLinked?"연결됨":"미연결"}</small></h2>
-    <p class="muted" style="margin:0 0 8px">폰·태블릿·컴퓨터에서 같은 구글 계정으로 연결하면 기록이 구글 드라이브의 앱 전용 공간에 저장되고 서로 합쳐져요. 기록을 바꾸면 자동으로 올라가고, 앱이 열려 있는 동안은 1분마다 다른 기기의 변경을 가져와요. 로그인은 1시간 정도 유지되고, 만료되면 위쪽 ☁ 버튼을 눌러 다시 이어 주세요. (새로고침해도 팝업은 뜨지 않아요)</p>
-    <label class="f" for="sgc">구글 OAuth 클라이언트 ID</label><input id="sgc" value="${esc(st.gClientId)}" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
-    ${st.gLinked?`<p class="muted" style="margin:8px 0 0">${Drive.lastSync?`이 기기 마지막 동기화 ${new Date(Drive.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:"이 기기에서는 아직 동기화 전이에요"}</p>`:""}
-    <div class="btnrow" style="margin-top:10px"><button class="primary" id="gLink">${st.gLinked?"지금 동기화":"구글 계정 연결"}</button><button id="gShare">다른 기기 연결 링크 복사</button>${st.gLinked?`<button class="ghost" id="gUnlink">연결 해제</button>`:""}</div>
+  <section class="card">
+    <h2>구글 계정 <small>${st.gLinked?"연결됨":"미연결"}</small></h2>
+    <p class="muted" style="margin:0 0 10px">같은 구글 계정으로 연결하면 기기끼리 기록이 합쳐져요.${st.gLinked?(Drive.lastSync?` 이 기기 마지막 동기화 ${new Date(Drive.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:" 이 기기에서는 아직 동기화 전이에요."):""}</p>
+    <input id="sgc" value="${esc(st.gClientId)}" placeholder="구글 OAuth 클라이언트 ID" autocomplete="off" spellcheck="false" aria-label="구글 OAuth 클라이언트 ID">
+    <div class="btnrow" style="margin-top:10px"><button class="primary" id="gLink">${st.gLinked?"지금 동기화":"구글 계정 연결"}</button><button id="gShare">연결 링크 복사</button>${st.gLinked?`<button class="ghost" id="gUnlink">연결 해제</button>`:""}</div>
     <details class="help"><summary>클라이언트 ID 만드는 법 (처음 한 번)</summary><ol>
       <li>console.cloud.google.com 접속 → 새 프로젝트 만들기</li>
       <li>API 및 서비스 → 라이브러리 → <b>Google Drive API</b> 사용 설정</li>
       <li>OAuth 동의 화면 → 외부(External) → 앱 이름·이메일 입력 → 테스트 사용자에 <b>내 구글 계정</b> 추가</li>
-      <li>사용자 인증 정보 → 사용자 인증 정보 만들기 → OAuth 클라이언트 ID → 유형 <b>웹 애플리케이션</b></li>
+      <li>사용자 인증 정보 → OAuth 클라이언트 ID → 유형 <b>웹 애플리케이션</b></li>
       <li>승인된 JavaScript 원본에 <b>${esc(location.origin&&location.origin.startsWith("http")?location.origin:"https://내아이디.github.io")}</b> 추가 → 만들기</li>
       <li>나온 클라이언트 ID를 위 칸에 붙여 넣고 ‘구글 계정 연결’</li></ol>
-      <br><br><b>다른 기기(태블릿·컴퓨터)</b>: 위 ‘다른 기기 연결 링크 복사’를 카톡 등으로 보내 그 기기에서 열면 클라이언트 ID가 자동으로 들어가요. 그다음 ‘구글 계정 연결’만 누르면 끝이에요. 기기마다 같은 웹 주소를 써야 해요.</details>
+      다른 기기에서는 ‘연결 링크 복사’로 보낸 링크를 열면 ID가 자동으로 들어가요. 로그인은 보통 알아서 이어지고, 풀리면 화면을 한 번 누르거나 위쪽 ☁ 버튼을 눌러 주세요.</details>
   </section>
-  <section class="card"><h2>파일로 합치기 · 백업</h2>
-    <p class="muted" style="margin:0 0 10px">구글 연동 없이도 파일로 다른 기기와 합치거나 백업할 수 있어요.</p>
-    <div class="btnrow"><button id="syOut">파일 저장</button><button id="syIn">파일 합치기</button></div>
-    <div class="btnrow" style="margin-top:8px"><button id="csv" class="ghost">CSV 내보내기</button></div>
+  <div class="gh">데이터</div>
+  <section class="card">
+    <div class="btnrow"><button id="syOut">백업 파일 저장</button><button id="syIn">파일 합치기</button><button id="csv" class="ghost">CSV 내보내기</button></div>
     <input type="file" id="syFile" accept=".json,application/json,text/plain" hidden>
+    <div class="btnrow" style="margin-top:10px"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div>
   </section>
-  <section class="card"><h2>앱 버전 ${justUpdated?`<small class="up">방금 업데이트됐어요</small>`:""}</h2>
-    <div class="row" style="padding-top:0"><div class="l"><div class="t num">v${APP_VERSION}</div><div class="s">${APP_DATE} · ${APP_NOTES}</div></div></div>
-    ${justUpdated?`<p class="muted" style="margin:8px 0 0">v${esc(prevVer)} → v${APP_VERSION} 로 올라갔어요.</p>`:""}
-  </section>
-  <section class="card"><h2>초기화</h2><div class="btnrow"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div></section>`;
+  <p class="muted" style="text-align:center;font-size:12px;margin:4px 0 16px">v${APP_VERSION} · ${APP_DATE}${justUpdated?` · <span class="up">방금 업데이트 (v${esc(prevVer)} → v${APP_VERSION})</span>`:""}<br>${APP_NOTES}</p>`;
 }
 
 function render(){
