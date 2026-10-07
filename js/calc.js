@@ -104,7 +104,7 @@ function monthRows(y){ const a=Array.from({length:12},()=>({net:0,gross:0,n:0}))
 // 원금 = 보유 종목의 평단 × 수량. 매수 기록(날짜별)이 있으면 그 날짜까지 산 만큼만 원금으로 쳐요.
 // (첫 매수일 이전의 배당은 첫 매수 기준으로 계산해요. 평단이 하나도 없을 때만 계획 탭의 월 원금을 써요.)
 const lotBase=l=>l.total!=null?+l.total:l.shares*l.price; // 그 매수의 총 매수금액 (예전 기록은 수량×가격)
-function lotCostKRW(h,l){ return lotBase(l)*(h.currency!=="KRW"?(+l.fx||S.settings.fx):1); }
+function lotCostKRW(h,l){ return lotBase(l)*(h.currency!=="KRW"?(+l.fx||+h.buyFx||S.settings.fx):1); }
 function holdCostOn(h,date){
   const ls=h.lots; if(!ls||!ls.length) return holdCalc(h).cost;
   const on=ls.filter(l=>l.date<=date), use=on.length?on:[[...ls].sort((a,c)=>a.date.localeCompare(c.date))[0]];
@@ -161,7 +161,7 @@ function rateView(){
   if(rateMode==="week"){
     const all=weekRates(52).map(w=>Object.assign(w,{rate:w.amt/(w.pr||pn.v)*100})), fi=all.findIndex(w=>w.amt>0), ws=fi>=0?all.slice(fi):[], sh=ws.slice(-26);
     const series=[{values:sh.map(w=>w.rate),color:"var(--red)",dots:true}]; if(base>0) series.push({values:sh.map(()=>base),color:"var(--blue)",dash:true});
-    const rows=[...ws].reverse().filter(w=>w.amt>0).slice(0,26).map(w=>`<div class="lrow"><div><div class="t">${fmtD(parseD(w.k))} 주</div><div class="s">${won(w.amt)}</div></div><div class="r"><div class="p ${base>0&&w.rate!=null?(w.rate>=base?"up":"down"):""}">${w.rate!=null?p2(w.rate):"-"}</div></div></div>`).join("");
+    const rows=[...ws].reverse().filter(w=>w.amt>0).slice(0,26).map(w=>`<div class="lrow"><div><div class="t">${fmtD(parseD(w.k))} 주</div><div class="s">원금 ${man(w.pr||pn.v)}만 · ${won(w.amt)}</div></div><div class="r"><div class="p ${base>0&&w.rate!=null?(w.rate>=base?"up":"down"):""}">${w.rate!=null?p2(w.rate):"-"}</div></div></div>`).join("");
     body=`<section class="card"><h2>주별 배당률 ${base>0?`<small>점선 = 기준 ${base}%</small>`:""}</h2>${lineChart({labels:sh.map(w=>fmtD(parseD(w.k))),series,fmt:p2,labelEvery:Math.max(1,Math.ceil(sh.length/6))})}</section>
       <section class="card" style="padding:4px 16px">${rows||`<div class="empty">아직 기록이 없어요</div>`}</section>`;
   } else if(rateMode==="month"){
@@ -170,7 +170,7 @@ function rateView(){
     while(ymOf(yy,mm)<=last){ const ym=ymOf(yy,mm), y=yy; if(++mm>11){ mm=0; yy++; } const amt=actualYm(ym,b), pr=principalOn(ym+"-31")||pn.v; ms.push({ym,y,amt,pr,rate:amt/pr*100,wk:wr.get(ym)}); }
     const yrs=[...new Set(ms.map(m=>m.y))].reverse().map(y=>{ const r=ms.filter(m=>m.y===y), amt=r.reduce((a,m)=>a+m.amt,0), pr=r[r.length-1].pr;
       return `<div class="lrow"><div><div class="t">${y}년</div><div class="s">${won(amt)} · ${r.length}개월</div></div><div class="r"><div class="p">${p2(amt/pr*100)}</div></div></div>`; }).join("");
-    const rows=[...ms].reverse().map(m=>`<div class="lrow"><div><div class="t">${ymLabel(m.ym)}</div><div class="s">${won(m.amt)}${m.wk&&m.wk.rate!=null?` · 주평균 ${p2(m.wk.rate)}`:""}</div></div><div class="r"><div class="p">${p2(m.rate)}</div></div></div>`).join("");
+    const rows=[...ms].reverse().map(m=>`<div class="lrow"><div><div class="t">${ymLabel(m.ym)}</div><div class="s">원금 ${man(m.pr)}만 · ${won(m.amt)}${m.wk&&m.wk.rate!=null?` · 주평균 ${p2(m.wk.rate)}`:""}</div></div><div class="r"><div class="p">${p2(m.rate)}</div></div></div>`).join("");
     body=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">연도별 배당률</h2>${yrs}</section><section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">월별 배당률 <small>월 배당 ÷ 원금</small></h2>${rows}</section>`;
   } else {
     const tot2={}, byT={}; for(const e of S.entries){ (byT[e.ticker]=byT[e.ticker]||[]).push(e); tot2[e.ticker]=(tot2[e.ticker]||0)+amtOf(e,b); }
