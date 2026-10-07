@@ -266,6 +266,9 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
+const APP_VERSION="1.1", APP_DATE="2026-10-07", APP_NOTES="주배당률 탭에 월×주차 한눈에 보기 표 추가";
+let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
+const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let tab = "home", chartMode = "month", logMode = "list", tickerSel = "all", homeYear = null, investYear = null;
 let renderTimer = null;
 
@@ -1054,6 +1057,10 @@ function viewSet(){
     <div class="btnrow" style="margin-top:8px"><button id="csv" class="ghost">CSV 내보내기</button></div>
     <input type="file" id="syFile" accept=".json,application/json,text/plain" hidden>
   </section>
+  <section class="card"><h2>앱 버전 ${justUpdated?`<small class="up">방금 업데이트됐어요</small>`:""}</h2>
+    <div class="row" style="padding-top:0"><div class="l"><div class="t num">v${APP_VERSION}</div><div class="s">${APP_DATE} · ${APP_NOTES}</div></div></div>
+    ${justUpdated?`<p class="muted" style="margin:8px 0 0">v${esc(prevVer)} → v${APP_VERSION} 로 올라갔어요.</p>`:""}
+  </section>
   <section class="card"><h2>초기화</h2><div class="btnrow"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div></section>`;
 }
 
@@ -1403,7 +1410,7 @@ document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState=
 </script>
 <script>
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
-  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  window.addEventListener("load",()=>{ if(justUpdated) toast("v"+APP_VERSION+" 로 업데이트됐어요"); navigator.serviceWorker.register("sw.js").catch(()=>{}); });
 }
 </script>
 </body>
