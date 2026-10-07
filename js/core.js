@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="2.2", APP_DATE="2026-10-07", APP_NOTES="매수 기록·재투자 반영 총수익률·배당 변동 알림, API 키 기기 전용, 파일 분리";
+const APP_VERSION="2.3", APP_DATE="2026-10-07", APP_NOTES="보유 탭을 애플 스타일로 단순하게 정리";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

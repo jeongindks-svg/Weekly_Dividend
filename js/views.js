@@ -115,39 +115,35 @@ function viewLog(){
 }
 
 function viewHold(){
-  if(!S.holdings.length) return `<section class="card"><div class="empty">보유 종목을 등록하면 현재 주가로 평가손익과 배당 포함 수익을 볼 수 있어요.</div></section><div class="btnrow"><button class="primary" id="addHold">종목 추가</button></div>`;
+  if(!S.holdings.length) return `<section class="card"><div class="empty">보유 종목을 등록하면 현재 주가로 평가손익과 총수익률을 볼 수 있어요.</div></section><div class="btnrow"><button class="primary" id="addHold">종목 추가</button></div>`;
   const P=portfolio(), fx=S.settings.fx;
-  const rows=P.rows.map(r=>{ const {h,p,cost,val,d}=r, kr=h.currency==="KRW";
-    const pl = val!=null&&cost? val-cost : null, plp = pl!=null? pl/cost*100 : null, own0=cost-d*RP(), tot = pl!=null&&own0>0? (pl+d)/own0*100 : null;
-    const pTxt = p? (kr?won(p):usd(p)) : "가격 없음";
-    const avgTxt = kr ? (r.aK?won(r.aK):"미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "미입력";
-    return `<div class="row hrow" data-hold="${h.id}" style="cursor:pointer;align-items:flex-start"><div class="l"><div class="t">${esc(h.ticker)}<span class="tag">${esc(h.freq||"주배당")}</span>${kr?`<span class="tag">국내</span>`:""}</div>
-      <div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt} · 현재 ${pTxt}</div></div>
-      <div class="r"><div class="num" style="font-weight:600">${val!=null?won(val):"-"}</div><div class="s num ${cls(pl||0)}">${pl!=null?`${wonS(pl)} (${pct(plp,1)})`:""}</div></div>
-      <div class="full"><div class="s num">받은 배당 ${won(d)}${val?` <b class="up nw">(평가금액 대비 ${(d/val*100).toFixed(2)}%)</b>`:""}</div>
-      ${tot!=null?`<div class="s num">총수익률 (재투자 반영) <b class="${cls(tot)}">${pct(tot,2)}</b></div>`:""}</div></div>`;
+  const {tCost,tVal,tDivP,missing}=P, pl=tVal-tCost, gain=pl+tDivP, own=tCost-tDivP*RP(), q=Object.values(S.quotes).map(x=>x.at).sort().pop();
+  const rows=P.rows.map(r=>{ const {h,p,cost,val}=r, kr=h.currency==="KRW";
+    const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null;
+    const avgTxt = kr ? (r.aK?won(r.aK):"평단 미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "평단 미입력";
+    return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
+      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}</div></div>
+      <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}</div></div>`;
   }).join("");
-  const {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing}=P, pl=tVal-tCost, gain=pl+tDivP, own=tCost-tDivP*RP(), q=Object.values(S.quotes).map(x=>x.at).sort().pop();
   const odd=oddKrw();
   const banner = odd.length ? `<section class="card notice"><b>${odd.map(h=>esc(h.ticker)).join(", ")}</b> 종목이 국내(원) 종목으로 저장돼 있어서 현재가가 들어오지 않고 평가금액이 비어 있어요. 미국 주식을 원화로 산 거라면 ‘미국 종목이에요’를 눌러 주세요. 입력했던 평단은 원화 평단으로 옮겨져요.
     <div class="btnrow" style="margin-top:10px"><button class="primary" id="fixKrw">미국 종목이에요</button><button class="ghost" id="keepKrw">국내 종목 맞아요</button></div></section>` : "";
   const notes=[`달러 종목은 오늘 환율(${fx.toLocaleString()}원)로 평가해요.`];
-  if(tCost) notes.push(`배당 ${Math.round(RP()*100)}% 재투자 가정: 내가 넣은 돈 ${won(Math.max(0,own))} = 원금 ${won(tCost)} − 재투자한 배당 ${won(tDivP*RP())}. 비율은 설정에서 바꿔요.`);
   if(missing) notes.push(`가격이 없는 종목 ${missing}개는 합계에서 빠졌어요.`);
   if(!S.settings.tdKey) notes.push("설정에서 주가 API 키를 넣으면 현재가가 자동으로 들어와요.");
+  if(tCost) notes.push(`배당 ${Math.round(RP()*100)}% 재투자 가정: 내가 넣은 돈 = 원금 ${won(tCost)} − 재투자한 배당 ${won(tDivP*RP())}. 비율은 설정에서 바꿔요.`);
   return `${banner}
-  <section class="card">
-    <h2>내 주식 수익 <small>${q?`주가 ${new Date(q).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}`:""}</small></h2>
-    <div class="stats" style="margin:0">
-      <div class="stat"><div class="k">평가금액</div><div class="v num">${won(tVal)}</div></div>
-      <div class="stat"><div class="k">평가손익</div><div class="v num ${cls(pl)}">${tCost?`${wonS(pl)}`:"-"}</div><div class="s num ${cls(pl)}" style="font-size:12px">${tCost?pct(pl/tCost*100):""}</div></div>
-      <div class="stat"><div class="k">받은 배당 (세후)</div><div class="v num up">${won(tDiv)}</div><div class="s num up" style="font-size:12px">${tVal?`평가금액 대비 ${(tDivP/tVal*100).toFixed(2)}%`:""}</div></div>
-      <div class="stat"><div class="k">총수익 (배당 포함)</div><div class="v num ${cls(gain)}">${tCost?wonS(gain):"-"}</div><div class="s num ${cls(gain)}" style="font-size:12px">${tCost&&own>0?`${pct(gain/own*100)} · 내 돈 대비`:""}</div></div>
-    </div>
-    <p class="muted" style="margin:10px 0 0">${notes.join(" ")}</p>
+  <section class="card hero2">
+    <div class="k">평가금액${q?` · ${new Date(q).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}`:""}</div>
+    <div class="big num">${won(tVal)}</div>
+    <div class="num ${cls(gain)}" style="font-weight:600;margin:-8px 0 14px">${tCost?`${wonS(gain)}${own>0?` (${pct(gain/own*100,1)})`:""}`:"-"} <span class="muted" style="font-weight:400">배당 포함 총수익</span></div>
+    <div class="mini"><div><div class="k">내가 넣은 돈</div><div class="v num">${tCost?won(Math.max(0,own)):"-"}</div></div>
+    <div><div class="k">받은 배당</div><div class="v num up">${won(tDivP)}</div></div>
+    <div><div class="k">평가손익</div><div class="v num ${cls(pl)}">${tCost?wonS(pl):"-"}</div></div></div>
+    <details class="help" style="margin-top:12px"><summary>계산 기준</summary><p class="muted" style="margin:6px 0 0">${notes.join(" ")}</p></details>
   </section>
   <section class="card" style="padding:4px 16px">${rows}</section>
-  <div class="btnrow"><button id="refQ" ${S.settings.tdKey?"":"disabled"}>주가 새로고침</button><button class="primary" id="addHold">종목 추가</button></div>`;
+  <div class="btnrow"><button id="refQ" class="ghost" ${S.settings.tdKey?"":"disabled"}>주가 새로고침</button><button class="primary" id="addHold">종목 추가</button></div>`;
 }
 
 function tickerDetail(t){
