@@ -134,15 +134,16 @@ function holdSheet(id){
   let lots=(h&&h.lots?h.lots:[]).map(x=>Object.assign({},x));
   const hadLots=lots.length>0, prevFx=h&&+h.buyFx>0?+h.buyFx:0; // 환율을 안 적은 매수는 이 종목의 기존 평균 매수 환율로 계산해요
   let scale=h&&+h.lotScale>0?+h.lotScale:1; // 증권사 평단과 맞추는 보정 비율 (수수료·소수점 차이)
+  let fxAvg=h&&+h.fxAvg>0?+h.fxAvg:0; // 원화 평단을 직접 적으면 모든 매수에 같은 평균 매수 환율을 써요
   const derive=()=>{ const fxOf=l=>+l.fx||prevFx, sh=lots.reduce((a,l)=>a+l.shares,0), cp0=lots.reduce((a,l)=>a+lotBase(l),0), allFx=lots.every(l=>fxOf(l)>0), ck0=lots.reduce((a,l)=>a+lotBase(l)*fxOf(l),0);
-    return {sh, raw:sh?cp0/sh:0, cp:cp0*scale, avg:sh?cp0*scale/sh:0, avgK:allFx&&sh?ck0*scale/sh:0}; };
+    return {sh, raw:sh?cp0/sh:0, cp:cp0*scale, avg:sh?cp0*scale/sh:0, avgK:fxAvg>0&&sh?cp0*scale/sh*fxAvg:(allFx&&sh?ck0*scale/sh:0)}; };
   openSheet(`<h3>${h?"종목 수정":"종목 추가"}</h3>
     <label class="f" for="ht">티커 / 종목명</label><input id="ht" value="${esc(h?h.ticker:"")}" placeholder="예: SPYI, QQQI, YMAX" autocapitalize="characters">
     <div class="grid2"><div><label class="f" for="hs">보유 수량</label><input id="hs" type="number" inputmode="decimal" step="any" value="${h?h.shares:""}"></div>
     <div><label class="f">상장 시장</label><div class="seg" id="hc"><button type="button" data-c="USD" aria-pressed="${cur==="USD"}">미국 $</button><button type="button" data-c="KRW" aria-pressed="${cur==="KRW"}">국내 ₩</button></div></div></div>
     <div id="husd"><div class="grid2"><div><label class="f" for="hau">달러 평단 ($)</label><input id="hau" type="number" inputmode="decimal" step="any" value="${vU}" placeholder="예: 50.12"></div>
       <div><label class="f" for="hak">원화 평단 (₩, 1주)</label><input id="hak" type="number" inputmode="decimal" step="any" value="${vK}" placeholder="예: 68000"></div></div>
-      <p class="calc" style="margin:4px 0 0">증권사 앱의 달러 평단과 원화 평단을 그대로 옮겨 적으세요. 여러 번 나눠 산 환율이 원화 평단에 이미 반영돼 있어서, 평균 매수 환율은 자동으로 계산돼요.</p></div>
+      <p class="calc" style="margin:4px 0 0">증권사 앱의 달러 평단과 원화 평단을 그대로 옮겨 적으세요. 여러 번 나눠 산 환율이 원화 평단에 이미 반영돼 있어서, 평균 매수 환율은 자동으로 계산돼요. 매수 기록을 넣었어도 원화 평단은 직접 적을 수 있어요. 적으면 환차손익이 증권사와 같게 계산돼요.</p></div>
     <div id="hkrw"><label class="f" for="haw">평균 매수가 (원)</label><input id="haw" type="number" inputmode="decimal" step="any" value="${vW}"></div>
     <div id="hlotbox" style="margin-top:12px"><label class="f">매수 기록 <span class="muted">(선택 · 넣으면 수량·평단이 자동 계산돼요)</span></label>
       <div id="hlots"></div>
@@ -160,13 +161,14 @@ function holdSheet(id){
     <div><label class="f" for="hf">지급 주기</label><select id="hf">${["주배당","월배당","분기배당"].map(f=>`<option ${h&&h.freq===f?"selected":""}>${f}</option>`).join("")}</select></div></div>
     <label class="f" for="hp">지급 요일 (선택)</label><input id="hp" value="${esc(h?h.payday||"":"")}" placeholder="예: 금요일">
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
-      const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#hak","#haw"];
+      const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
         $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
         const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중 (기록상 평단 ${us?"$"+fmtPs(+ds.raw.toFixed(4)):won(ds.raw)})`:""}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
         $("#hovbox").hidden=!lots.length; if(document.activeElement!==$("#hov")) $("#hov").value=scale!==1?r4(ds.avg,4):"";
         const d=derive(), on=lots.length>0; mine.forEach(i=>$(i).readOnly=on);
-        if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
+        if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); if(document.activeElement!==$("#hak")) $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
+      $("#hak").addEventListener("input",()=>{ if(!lots.length||cur==="KRW") return; const K=+$("#hak").value, avg=derive().avg; fxAvg=K>0&&avg>0?K/avg:0; });
       $("#hov").addEventListener("input",()=>{ const v=+$("#hov").value, raw=derive().raw; scale=v>0&&raw>0?v/raw:1;
         const ds=derive(); $("#hlsum").innerHTML=`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 1주 평단 ${cur!=="KRW"?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중`:""}`; if(cur!=="KRW"){ $("#hau").value=r4(ds.avg,4); $("#hak").value=ds.avgK?r4(ds.avgK,2):""; } else $("#haw").value=r4(ds.avg,2); });
       $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"), e=ev.target.closest("[data-le]");
@@ -199,7 +201,7 @@ function holdSheet(id){
         const d0=derive(), t=$("#ht").value.trim().toUpperCase(), sh=lots.length?d0.sh:+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
         if(h&&lots.length&&!hadLots&&Math.abs(d0.sh-h.shares)>1e-6&&!confirm(`매수 기록의 합계는 ${d0.sh}주인데 지금 보유 수량은 ${h.shares}주예요.\n저장하면 보유 수량이 ${d0.sh}주로 바뀌어요. 계속할까요?`)) return;
-        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
+        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,fxAvg:lots.length&&cur!=="KRW"?fxAvg:0,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
         if(cur==="KRW"){ Object.assign(rec,{avgCost:lots.length?d0.avg:(+$("#haw").value||0),avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
         else { const aU=lots.length?d0.avg:(+$("#hau").value||0), aK=lots.length?d0.avgK:(+$("#hak").value||0); Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }
         if(h) Object.assign(h,rec); else S.holdings.push(Object.assign({id:uid()},rec));

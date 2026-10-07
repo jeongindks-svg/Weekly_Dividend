@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="2.8", APP_DATE="2026-10-07", APP_NOTES="매수 기록 평단을 증권사 평단에 맞추는 보정 추가";
+const APP_VERSION="2.9", APP_DATE="2026-10-07", APP_NOTES="매수 기록이 있어도 원화 평단 직접 입력 가능(환차손익 반영)";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
