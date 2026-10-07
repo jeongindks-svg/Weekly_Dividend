@@ -105,12 +105,12 @@ function viewHold(){
   if(!S.holdings.length) return `<section class="card"><div class="empty">보유 종목을 등록하면 현재 주가로 평가손익과 총수익률을 볼 수 있어요.</div></section><div class="btnrow"><button class="primary" id="addHold">종목 추가</button></div>`;
   const P=portfolio(), fx=S.settings.fx;
   const {tCost,tVal,tDivP,missing}=P, pl=tVal-tCost, gain=pl+tDivP, own=tCost-tDivP*RP(), q=Object.values(S.quotes).map(x=>x.at).sort().pop();
-  const rows=P.rows.map(r=>{ const {h,p,cost,val}=r, kr=h.currency==="KRW";
-    const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null;
+  const rows=P.rows.map(r=>{ const {h,p,cost,val,d}=r, kr=h.currency==="KRW";
+    const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null, own1=cost-d*RP(), totp = pl1!=null&&own1>0? (pl1+d)/own1*100 : null;
     const avgTxt = kr ? (r.aK?won(r.aK):"평단 미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "평단 미입력";
     return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
-      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}${h.lots&&h.lots.length?` · 매수 ${h.lots.length}회`:""}</div></div>
-      <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}</div></div>`;
+      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}</div></div>
+      <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}${totp!=null&&d>0?`<div class="s num ${cls(totp)}" style="font-weight:500;font-size:12px">배당 포함 ${pct(totp,1)}</div>`:""}</div></div>`;
   }).join("");
   const odd=oddKrw();
   const banner = odd.length ? `<section class="card notice"><b>${odd.map(h=>esc(h.ticker)).join(", ")}</b> 종목이 국내(원) 종목으로 저장돼 있어서 현재가가 들어오지 않고 평가금액이 비어 있어요. 미국 주식을 원화로 산 거라면 ‘미국 종목이에요’를 눌러 주세요. 입력했던 평단은 원화 평단으로 옮겨져요.
