@@ -266,7 +266,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="1.1", APP_DATE="2026-10-07", APP_NOTES="주배당률 탭에 월×주차 한눈에 보기 표 추가";
+const APP_VERSION="1.2", APP_DATE="2026-10-07", APP_NOTES="그래프에 원금 배당률 탭 추가";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let tab = "home", chartMode = "month", logMode = "list", tickerSel = "all", homeYear = null, investYear = null;
@@ -724,6 +724,38 @@ function rateView(){
   <p class="muted" style="font-size:12px;margin:0 2px 12px">주배당률 = 한 주에 받은 ${basisName()} 배당 ÷ 그달 원금. 계획에 원금이 있으면 계획 원금을, 없으면 보유 종목의 매입금액을 써요(표의 * 표시). 월 옆 ‘n주’는 배당을 기록한 주 수예요. 세전/세후는 계획 탭에서 바꿀 수 있어요.</p>`;
 }
 
+// ---------- 원금 배당률 (받은 배당 ÷ 원금) ----------
+function principalNow(){
+  const cur=ymOf(new Date().getFullYear(),new Date().getMonth()), ps=S.plan.filter(p=>p.principal>0&&p.ym<=cur).sort((a,c)=>c.ym.localeCompare(a.ym));
+  return ps.length?{v:ps[0].principal*10000,plan:true}:{v:fallbackPrincipal(),plan:false};
+}
+function yieldView(){
+  const b=basis(), p2=v=>v.toFixed(2)+"%", pn=principalNow(), fb=fallbackPrincipal();
+  const es=S.entries; if(!es.length||!(pn.v>0)) return `<section class="card"><div class="empty">원금과 배당 기록이 있어야 계산할 수 있어요.<br>계획 탭에서 월 원금을 넣거나, 보유 탭에 종목 평단을 입력해 주세요.</div><div class="btnrow"><button id="goPlan">계획 탭으로</button></div></section>`;
+  const first=es.map(e=>e.date).sort()[0].slice(0,7), now=new Date(), last=ymOf(now.getFullYear(),now.getMonth());
+  const rows=[]; let cum=0;
+  let yy=+first.slice(0,4), mm=+first.slice(5,7)-1;
+  while(ymOf(yy,mm)<=last){ const y=yy, m=mm; if(++mm>11){ mm=0; yy++; }
+    const ym=ymOf(y,m), amt=actualYm(ym,b), pp=principalOf(ym), pr=pp||pn.v; cum+=amt;
+    rows.push({ym,y,amt,pr,plan:!!pp,rate:pr>0?amt/pr*100:null,cum,cumRate:pr>0?cum/pr*100:null}); }
+  const ytd=rows.filter(r=>r.y===now.getFullYear()).reduce((a,r)=>a+r.amt,0), l12=rows.slice(-12).reduce((a,r)=>a+r.amt,0), tot=cum;
+  const yrs=[...new Set(rows.map(r=>r.y))].reverse().map(y=>{ const rs=rows.filter(r=>r.y===y), amt=rs.reduce((a,r)=>a+r.amt,0), pr=rs[rs.length-1].pr;
+    return `<tr><td class="l"><b>${y}년</b> <span class="muted" style="font-size:11px">${rs.length}개월</span></td><td>${man(pr)}</td><td class="amt">${won(amt)}</td><td class="amt">${pr>0?p2(amt/pr*100):"-"}</td></tr>`; }).join("");
+  const trs=[...rows].reverse().map(r=>`<tr><td class="l"><b>${ymLabel(r.ym)}</b></td><td>${man(r.pr)}${r.plan?"":"*"}</td><td>${won(r.amt)}</td><td class="amt">${r.rate!=null?p2(r.rate):"-"}</td><td>${r.cumRate!=null?p2(r.cumRate):"-"}</td></tr>`).join("");
+  const sub=t=>`<div class="muted" style="font-size:12px">${t}</div>`, shown=rows.slice(-24);
+  return `
+  <section class="stats">
+    <div class="stat"><div class="k">현재 원금</div><div class="v num">${man(pn.v)}만원</div>${sub(pn.plan?"계획 탭 기준":"보유 종목 매입금액 기준")}</div>
+    <div class="stat"><div class="k">누적 배당률</div><div class="v num">${p2(tot/pn.v*100)}</div>${sub(`${basisName()} ${won(tot)} ÷ 원금`)}</div>
+    <div class="stat"><div class="k">올해 배당률</div><div class="v num">${p2(ytd/pn.v*100)}</div>${sub(`${won(ytd)} ÷ 원금`)}</div>
+    <div class="stat"><div class="k">최근 12개월</div><div class="v num">${p2(l12/pn.v*100)}</div>${sub(`${won(l12)} ÷ 원금`)}</div>
+  </section>
+  <section class="card"><h2>누적 배당률 <small>${basisName()} · 원금 대비</small></h2>${lineChart({labels:shown.map(r=>r.ym.slice(2).replace("-",".")),series:[{values:shown.map(r=>r.cumRate),color:"var(--red)",dots:true}],fmt:p2,fromZero:true,labelEvery:Math.max(1,Math.ceil(shown.length/6))})}</section>
+  <section class="card" style="padding:0"><h2 style="padding:14px 16px 0">연도별 <small>그해 받은 배당 ÷ 연말 원금</small></h2><div class="tbl"><table><thead><tr><th class="l">연도</th><th>원금(만)</th><th>받은 배당</th><th>배당률</th></tr></thead><tbody>${yrs}</tbody></table></div></section>
+  <section class="card" style="padding:0"><h2 style="padding:14px 16px 0">월별 <small>배당 ÷ 그달 원금</small></h2><div class="tbl"><table><thead><tr><th class="l">월</th><th>원금(만)</th><th>받은 배당</th><th>배당률</th><th>누적</th></tr></thead><tbody>${trs}</tbody></table></div></section>
+  <p class="muted" style="font-size:12px;margin:0 2px 12px">원금 대비 배당률 = 받은 ${basisName()} 배당 ÷ 원금. 계획에 그달 원금이 있으면 그 값을, 없으면 현재 원금을 써요(표의 * 표시). 누적은 처음부터 그달까지 받은 배당 합계를 그달 원금으로 나눈 값이에요. 세전/세후는 계획 탭에서 바꿀 수 있어요.</p>`;
+}
+
 // ---------- views ----------
 function goalBlock(){
   const now=new Date(), y=now.getFullYear(), mi=now.getMonth(), g=goalFor(y,mi); if(!g) return "";
@@ -883,7 +915,7 @@ function tickerDetail(t){
 
 function viewChart(){
   const now=new Date(), y=now.getFullYear(), b=basis();
-  const seg=`<div class="seg" id="cseg" style="margin-bottom:14px">${[["month","월별"],["week","주별"],["cum","누적"],["ticker","종목"],["rate","주배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>`;
+  const seg=`<div class="seg" id="cseg" style="margin-bottom:14px">${[["month","월별"],["week","주별"],["cum","누적"],["ticker","종목"],["rate","주배당률"],["yield","원금 배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>`;
   if(chartMode==="ticker"){
     const ts=[...new Set(S.entries.map(e=>e.ticker))].sort();
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
@@ -893,6 +925,7 @@ function viewChart(){
     return seg+chips+tickerDetail(tickerSel);
   }
   if(chartMode==="rate") return seg+rateView();
+  if(chartMode==="yield") return seg+yieldView();
   const months=new Array(12).fill(0).map((_,i)=>actualYm(ymOf(y,i),b)), goals=months.map((_,i)=>goalFor(y,i)), hasGoal=goals.some(g=>g>0);
   const firstThisYear=S.entries.map(e=>e.date).filter(d=>d.startsWith(y+"-")).sort()[0];
   const startM=firstThisYear?parseD(firstThisYear).getMonth():0, cm=now.getMonth();
