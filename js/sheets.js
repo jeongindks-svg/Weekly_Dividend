@@ -56,7 +56,7 @@ function batchSheet(){
           el.querySelector(".calc").textContent = ps? `세후 ${h.currency==="KRW"?"":usd(c.net)+" · "}${won(c.netKRW)}${c.yield!=null?` · ${c.yield.toFixed(2)}%`:""}` : "";
           el.style.opacity=on?1:.45; if(on) tot+=c.netKRW; });
         $("#bsum").textContent=`이번 주 세후 합계 ${won(tot)}`; };
-      $("#sheet").addEventListener("input",upd); drawLots(); upd();
+      $("#sheet").addEventListener("input",upd); upd();
       const fxs=autoFxInto("#bd","#bfx","#bfxn",upd);
       const DOW="일월화수목금토", dw=()=>{ const v=$("#bd").value; $("#bdw").textContent=v?`· ${DOW[parseD(v).getDay()]}요일`:""; };
       const shift=n=>{ const v=$("#bd").value||todayStr(); $("#bd").value=addDays(v,n); $("#bd").dispatchEvent(new Event("change")); };
@@ -132,8 +132,9 @@ function holdSheet(id){
   const r2=(n,d)=>n?Math.round(n*10**d)/10**d:"";
   const vU=c0?r2(c0.aU,4):"", vK=c0?r2(c0.aK,2):"", vW=h&&h.currency==="KRW"?(h.avgCost||""):"";
   let lots=(h&&h.lots?h.lots:[]).map(x=>Object.assign({},x));
-  const derive=()=>{ const sh=lots.reduce((a,l)=>a+l.shares,0), cp=lots.reduce((a,l)=>a+lotBase(l),0), allFx=lots.every(l=>+l.fx>0), ck=lots.reduce((a,l)=>a+lotBase(l)*(+l.fx||0),0);
-    return {sh, avg:sh?cp/sh:0, avgK:allFx&&sh?ck/sh:0}; };
+  const hadLots=lots.length>0, prevFx=h&&+h.buyFx>0?+h.buyFx:0; // 환율을 안 적은 매수는 이 종목의 기존 평균 매수 환율로 계산해요
+  const derive=()=>{ const fxOf=l=>+l.fx||prevFx, sh=lots.reduce((a,l)=>a+l.shares,0), cp=lots.reduce((a,l)=>a+lotBase(l),0), allFx=lots.every(l=>fxOf(l)>0), ck=lots.reduce((a,l)=>a+lotBase(l)*fxOf(l),0);
+    return {sh, cp, avg:sh?cp/sh:0, avgK:allFx&&sh?ck/sh:0}; };
   openSheet(`<h3>${h?"종목 수정":"종목 추가"}</h3>
     <label class="f" for="ht">티커 / 종목명</label><input id="ht" value="${esc(h?h.ticker:"")}" placeholder="예: SPYI, QQQI, YMAX" autocapitalize="characters">
     <div class="grid2"><div><label class="f" for="hs">보유 수량</label><input id="hs" type="number" inputmode="decimal" step="any" value="${h?h.shares:""}"></div>
@@ -149,6 +150,7 @@ function holdSheet(id){
         <div><label class="f" for="ltp">총 매수금액 <span class="hcur"></span></label><input id="ltp" type="number" inputmode="decimal" step="any" placeholder="수량 전체 가격"></div></div>
       <div id="ltfw"><label class="f" for="ltf">매수 환율 (원/$, 선택)</label><input id="ltf" type="number" inputmode="decimal" step="any" placeholder="모르면 비워 두기"></div>
       <div class="btnrow" style="margin-top:8px"><button type="button" class="small" id="ladd">+ 매수 추가</button></div>
+      <div class="calc num" id="hlsum" style="margin-top:8px"></div>
       <p class="calc" style="margin:6px 0 0">총 매수금액은 그 수량을 산 전체 가격이에요. 1주 평단은 자동으로 계산돼요. 추가로 산 날짜별로 적으면 그 시점의 원금으로 배당률을 계산해요. 배당으로 재투자해서 산 것도 매수로 적어 주세요.</p></div>
     <div class="preview num" id="hpv" style="font-size:13px"></div>
     <div class="grid2"><div><label class="f" for="hm">현재가 직접 입력 <span class="hcur"></span></label><input id="hm" type="number" inputmode="decimal" step="any" value="${h&&h.manualPrice?h.manualPrice:""}" placeholder="자동이면 비워 두기"></div>
@@ -157,10 +159,14 @@ function holdSheet(id){
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#hak","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
-        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div>`).join("");
+        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
+        const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
         const d=derive(), on=lots.length>0; mine.forEach(i=>$(i).readOnly=on);
         if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
-      $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"); if(b){ lots=lots.filter(l=>l.id!==b.dataset.ld); drawLots(); upd(); } };
+      $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"), e=ev.target.closest("[data-le]");
+        if(b){ lots=lots.filter(l=>l.id!==b.dataset.ld); drawLots(); upd(); }
+        else if(e){ const l=lots.find(x=>x.id===e.dataset.le); if(!l) return; lots=lots.filter(x=>x!==l);
+          $("#ltd").value=l.date; $("#lts").value=l.shares; $("#ltp").value=lotBase(l); $("#ltf").value=+l.fx||""; drawLots(); upd(); toast("위 칸에서 고친 뒤 ‘+ 매수 추가’를 눌러 주세요"); } };
       $("#ladd").onclick=()=>{ const d=$("#ltd").value, s=+$("#lts").value, t=+$("#ltp").value, f=+$("#ltf").value||0;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!(s>0)||!(t>0)){ toast("매수일·수량·총 매수금액을 입력해 주세요"); return; }
         lots.push({id:uid(),date:d,shares:s,total:t,price:t/s,fx:cur!=="KRW"?f:0}); $("#lts").value=""; $("#ltp").value=""; $("#ltf").value=""; drawLots(); upd(); };
@@ -176,12 +182,17 @@ function holdSheet(id){
         else if(aU) msg=`원화 평단이 없으면 오늘 환율(${fx.toLocaleString()}원)로 원금을 계산해서 환차손익이 0으로 보여요.`;
         pv.innerHTML=msg; pv.hidden=!msg; };
       $("#hc").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; cur=b.dataset.c; lots.forEach(l=>{ if(cur==="KRW") l.fx=0; }); $("#hc").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cur)); drawLots(); upd(); };
-      $("#sheet").addEventListener("input",upd); upd();
+      $("#sheet").addEventListener("input",upd); drawLots(); upd();
       $("#hcx").onclick=closeSheet;
       if(h) $("#hdel").onclick=()=>{ if(!confirm("종목을 삭제할까요? 지난 배당 기록은 남아 있어요.")) return; S.holdings=S.holdings.filter(x=>x.id!==h.id); markDeleted(h.id); persist(); closeSheet(); };
       $("#hsv").onclick=()=>{
+        // 칸에 적어 놓고 ‘+ 매수 추가’를 안 눌렀다면 대신 넣어요
+        const pd=$("#ltd").value, ps=+$("#lts").value, pt=+$("#ltp").value;
+        if(ps>0&&pt>0&&/^\d{4}-\d{2}-\d{2}$/.test(pd)) $("#ladd").click();
+        else if(ps>0||pt>0){ toast("적고 있던 매수 기록이 있어요. 수량과 총 매수금액을 모두 넣고 ‘+ 매수 추가’를 눌러 주세요"); return; }
         const d0=derive(), t=$("#ht").value.trim().toUpperCase(), sh=lots.length?d0.sh:+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
+        if(h&&lots.length&&!hadLots&&Math.abs(d0.sh-h.shares)>1e-6&&!confirm(`매수 기록의 합계는 ${d0.sh}주인데 지금 보유 수량은 ${h.shares}주예요.\n저장하면 보유 수량이 ${d0.sh}주로 바뀌어요. 계속할까요?`)) return;
         const rec={ticker:t,shares:sh,lots,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
         if(cur==="KRW"){ Object.assign(rec,{avgCost:lots.length?d0.avg:(+$("#haw").value||0),avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
         else { const aU=lots.length?d0.avg:(+$("#hau").value||0), aK=lots.length?d0.avgK:(+$("#hak").value||0); Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }

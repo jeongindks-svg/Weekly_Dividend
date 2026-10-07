@@ -109,7 +109,7 @@ function viewHold(){
     const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null;
     const avgTxt = kr ? (r.aK?won(r.aK):"평단 미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "평단 미입력";
     return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
-      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}</div></div>
+      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}${h.lots&&h.lots.length?` · 매수 ${h.lots.length}회`:""}</div></div>
       <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}</div></div>`;
   }).join("");
   const odd=oddKrw();

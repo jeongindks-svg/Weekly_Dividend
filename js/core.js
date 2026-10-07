@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="2.6", APP_DATE="2026-10-07", APP_NOTES="동기화는 천천히·팝업 없이, 데이터 이중 보관·자동 복구, 매수 기록은 총 매수금액으로 입력";
+const APP_VERSION="2.7", APP_DATE="2026-10-07", APP_NOTES="이번 주 배당 입력 시트 오류 수정, 매수 기록 표시·수정·검증 보강";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
