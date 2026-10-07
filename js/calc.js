@@ -104,7 +104,7 @@ function monthRows(y){ const a=Array.from({length:12},()=>({net:0,gross:0,n:0}))
 // 원금 = 보유 종목의 평단 × 수량. 매수 기록(날짜별)이 있으면 그 날짜까지 산 만큼만 원금으로 쳐요.
 // (첫 매수일 이전의 배당은 첫 매수 기준으로 계산해요. 평단이 하나도 없을 때만 계획 탭의 월 원금을 써요.)
 const lotBase=l=>l.total!=null?+l.total:l.shares*l.price; // 그 매수의 총 매수금액 (예전 기록은 수량×가격)
-function lotCostKRW(h,l){ return lotBase(l)*(h.currency!=="KRW"?(+l.fx||+h.buyFx||S.settings.fx):1); }
+function lotCostKRW(h,l){ return lotBase(l)*(+h.lotScale>0?+h.lotScale:1)*(h.currency!=="KRW"?(+l.fx||+h.buyFx||S.settings.fx):1); }
 function holdCostOn(h,date){
   const ls=h.lots; if(!ls||!ls.length) return holdCalc(h).cost;
   const on=ls.filter(l=>l.date<=date), use=on.length?on:[[...ls].sort((a,c)=>a.date.localeCompare(c.date))[0]];
