@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="2.5", APP_DATE="2026-10-07", APP_NOTES="계획 자동 만들기·붙여넣기/CSV 불러오기·내보내기";
+const APP_VERSION="2.6", APP_DATE="2026-10-07", APP_NOTES="동기화는 천천히·팝업 없이, 데이터 이중 보관·자동 복구, 매수 기록은 총 매수금액으로 입력";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
@@ -79,11 +79,18 @@ function normalize(p){
 // 주가 API 키는 이 기기에만 저장해요 (구글 동기화·백업 파일에는 넣지 않아요)
 const TD_KEY = "jb-td";
 function exportJSON(){ const o=clone(S); o.settings.tdKey=""; return JSON.stringify(o); }
-function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); if(r) S=normalize(JSON.parse(r));
+// 같은 기기 안에서 한 벌 더 보관해요 (IndexedDB). 브라우저가 한쪽을 지워도 다른 쪽에서 되살려요.
+const IDB={ db:null, t:null,
+  open(){ return new Promise(res=>{ try{ const r=indexedDB.open("jb-mirror",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>{ this.db=r.result; res(this.db); }; r.onerror=()=>res(null); }catch(e){ res(null); } }); },
+  put(v){ clearTimeout(this.t); this.t=setTimeout(async()=>{ const db=this.db||await this.open(); if(!db) return; try{ db.transaction("kv","readwrite").objectStore("kv").put(v,"state"); }catch(e){} },400); },
+  async get(){ const db=this.db||await this.open(); if(!db) return null; return new Promise(res=>{ try{ const q=db.transaction("kv").objectStore("kv").get("state"); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }catch(e){ res(null); } }); }
+};
+const hasData=o=>!!o&&["entries","holdings","plan","invest"].some(k=>Array.isArray(o[k])&&o[k].length);
+function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); if(r){ try{ S=normalize(JSON.parse(r)); }catch(e){ try{ localStorage.setItem("jb-corrupt",r); }catch(_){} } }
   const k=localStorage.getItem(TD_KEY); if(!S.settings.tdKey && k) S.settings.tdKey=k;
   else if(S.settings.tdKey && S.settings.tdKey!==k) saveLocal(); }catch(e){} }
 function saveLocal(){ try{ if(S.settings.tdKey) localStorage.setItem(TD_KEY,S.settings.tdKey); else localStorage.removeItem(TD_KEY);
-  localStorage.setItem(LS_KEY, exportJSON()); }catch(e){} }
+  const j=exportJSON(); localStorage.setItem(LS_KEY, j); IDB.put(j); }catch(e){} }
 function persist(){ saveLocal(); Drive.schedulePush(); }
 function touchSettings(){ S.settings.updated = Date.now(); }
 

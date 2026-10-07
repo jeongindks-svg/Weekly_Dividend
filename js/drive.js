@@ -60,16 +60,11 @@ const Drive = {
   async sync(interactive){
     if(this.busy){ this.again=true; return; }
     if(!online()){ if(interactive) toast("인터넷 연결 후 동기화할 수 있어요"); return; }
-    if(!interactive){ if(!this.linked()) return; if(!this.ready() && Date.now()<this.noSilentUntil){ this.status="needs"; this.setChip(); return; } }
+    // 자동 동기화는 로그인 창을 절대 띄우지 않아요. 로그인이 만료되면 위쪽 ☁ 를 눌러 다시 연결할 때까지 변경 사항을 모아 둬요.
+    if(!interactive){ if(!this.linked()) return; if(!this.ready()){ this.status="needs"; this.setChip(); return; } }
     this.busy=true; this.setChip("동기화 중…");
     try{
-      if(!this.ready()){
-        try{ await this.auth(!interactive); }
-        catch(e){ if(interactive) throw e; this.noSilentUntil=Date.now()+10*60000; this.status="needs"; return; }
-      } else if(!interactive && this.exp-Date.now()<5*60000 && Date.now()>=this.noSilentUntil){
-        // 곧 만료되면 미리 조용히 갱신해요 (실패해도 아직 쓸 수 있는 토큰으로 계속)
-        try{ await this.auth(true); }catch(e){ this.noSilentUntil=Date.now()+10*60000; }
-      }
+      if(!this.ready()) await this.auth(false);
       if(!S.settings.gLinked){ S.settings.gLinked=true; }
       const before=digest(S), id=await this.findFile();
       let added=0, remoteD="";
@@ -96,22 +91,19 @@ const Drive = {
   schedulePush(){
     this.setChip();
     if(!this.linked()) return;
-    clearTimeout(this.timer); this.timer=setTimeout(()=>this.sync(false),2500);
+    clearTimeout(this.timer); this.timer=setTimeout(()=>this.sync(false),30000); // 변경 후 30초 모아서 한 번에 올려요
   },
   // 앱이 열려 있는 동안 1분마다 다른 기기의 변경을 가져와요
   startAuto(){
     if(this.poll) return;
-    this.poll=setInterval(()=>{ if(document.visibilityState==="visible" && this.linked()) this.sync(false); },60000);
-    // 토큰이 만료돼 있으면 화면을 처음 누르는 순간 조용히 다시 로그인해요 (로그인 창은 누른 순간에만 열 수 있어서)
-    document.addEventListener("pointerdown",()=>{
-      if(this.linked() && !this.busy && (!this.ready() || this.exp-Date.now()<5*60000) && Date.now()-this.gestureAt>20000){ this.gestureAt=Date.now(); this.noSilentUntil=0; this.sync(false); }
-    },true);
+    this.poll=setInterval(()=>{ if(document.visibilityState==="visible" && this.ready()) this.sync(false); },5*60000); // 5분마다 다른 기기 변경 확인
   },
   setChip(t){
     const c=$("#syncChip"); if(!c) return;
     if(t){ c.textContent=t; return; }
     if(!S.settings.gLinked) c.textContent = "이 기기에 저장됨";
     else if(this.status==="err") c.textContent = "☁ 동기화 오류 · 눌러서 재시도";
+    else if(!this.ready()) c.textContent = "☁ 연결 만료 · 눌러서 다시 연결";
     else if(this.ready() && this.lastSync) c.textContent = "☁ 동기화됨 "+new Date(this.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
     else c.textContent = "☁ 눌러서 동기화";
   }
