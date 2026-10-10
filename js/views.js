@@ -162,7 +162,12 @@ function viewChart(){
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
     const chips=`<div class="chips" id="tchips">${["all",...ts].map(t=>`<button data-t="${esc(t)}" aria-pressed="${tickerSel===t}">${t==="all"?"전체":esc(t)}</button>`).join("")}</div>`;
     if(tickerSel==="all"){ const o={}; for(const e of S.entries){ if(parseD(e.date).getFullYear()===y) o[e.ticker]=(o[e.ticker]||0)+calc(e).netKRW; }
-      return seg+chips+`<section class="card"><h2>${y}년 종목별 비중 (세후)</h2>${donut(Object.entries(o).sort((a,b)=>b[1]-a[1]))}<p class="muted" style="margin:10px 0 0">위에서 종목을 고르면 그 종목만 날짜별로 볼 수 있어요.</p></section>`; }
+      // 현재 보유 비중: 평가금액 기준 (가격이 없는 종목은 매입금액으로 대신해요)
+      const hv={}; let est=0; for(const r of portfolio().rows){ const v=r.val!=null?r.val:r.cost; if(!(v>0)) continue; hv[r.h.ticker]=(hv[r.h.ticker]||0)+v; if(r.val==null) est++; }
+      const held=Object.entries(hv).sort((a,b)=>b[1]-a[1]);
+      return seg+chips+`<section class="card"><h2>${y}년 받은 배당 비중 <small>세후</small></h2>${donut(Object.entries(o).sort((a,b)=>b[1]-a[1]))}</section>
+        <section class="card"><h2>현재 보유 비중 <small>평가금액</small></h2>${held.length?donut(held):`<div class="empty">보유 탭에 종목을 넣으면 비중을 볼 수 있어요</div>`}${est?`<p class="muted" style="margin:10px 0 0;font-size:12px">현재가가 없는 ${est}개 종목은 매입금액으로 계산했어요.</p>`:""}</section>
+        <p class="muted" style="margin:0 2px 12px">위에서 종목을 고르면 그 종목만 날짜별로 볼 수 있어요.</p>`; }
     return seg+chips+tickerDetail(tickerSel);
   }
   if(chartMode==="rate") return seg+rateView();
