@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="3.0", APP_DATE="2026-10-07", APP_NOTES="보유 종목에 배당 포함 수익률 표시, 매수 횟수 표시 제거";
+const APP_VERSION="3.1", APP_DATE="2026-10-10", APP_NOTES="그래프 종목 전체에 현재 보유 비중(평가금액) 도넛 추가";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
