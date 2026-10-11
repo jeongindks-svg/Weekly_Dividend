@@ -1,13 +1,21 @@
 "use strict";
 // ---------- sheets ----------
 function monthSheet(ym){
-  const es=S.entries.filter(e=>e.date.startsWith(ym)).sort((a,c)=>c.date.localeCompare(a.date)||a.ticker.localeCompare(c.ticker)), b=basis();
-  const tot=es.reduce((a,e)=>a+amtOf(e,b),0), by={}; for(const e of es) by[e.ticker]=(by[e.ticker]||0)+amtOf(e,b);
-  const [y,m]=ym.split("-");
-  openSheet(`<h3>${y}년 ${+m}월 받은 배당</h3><p class="hint">${basisName()} ${won(tot)} · ${es.length}건</p>
-    ${es.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px">${Object.entries(by).sort((a,c)=>c[1]-a[1]).map(([t,v])=>`<span class="tag" style="margin:0">${esc(t)} ${won(v)}</span>`).join("")}</div>
-    ${es.map(e=>{ const d=parseD(e.date); return `<div class="lrow"><div><div class="t">${esc(e.ticker)}</div><div class="s">${fmtD(d)} (${"일월화수목금토"[d.getDay()]}) · ${e.currency==="KRW"?won(e.perShare):"$"+fmtPs(e.perShare)} × ${qty(e.shares)}주</div></div><div class="r"><div class="p amt">${won(amtOf(e,b))}</div></div></div>`; }).join("")}`:`<div class="empty">이 달에 받은 배당이 없어요</div>`}
-    <div class="btnrow" style="margin-top:12px"><button id="msClose">닫기</button></div>`,()=>{ $("#msClose").onclick=closeSheet; });
+  const b=basis(), es=S.entries.filter(e=>e.date.startsWith(ym)), tot=es.reduce((a,e)=>a+amtOf(e,b),0), [y,m]=ym.split("-"), wk=new Map();
+  for(const e of es){ const k=weekKey(e.date); if(!wk.has(k)) wk.set(k,[]); wk.get(k).push(e); }
+  const keys=[...wk.keys()].sort();
+  openSheet(`<h3>${y}년 ${+m}월 받은 배당</h3><p class="hint">${basisName()} ${won(tot)} · ${es.length}건 · 주차를 누르면 내역이 보여요</p>
+    ${keys.length?keys.map(k=>weekRow(k,wk.get(k),b)).join(""):`<div class="empty">이 달에 받은 배당이 없어요</div>`}
+    <div class="btnrow" style="margin-top:12px"><button id="msClose">닫기</button></div>`,()=>{ $("#msClose").onclick=closeSheet;
+      $("#sheet").querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week)); });
+}
+function weekSheet(k){
+  const b=basis(), es=S.entries.filter(e=>weekKey(e.date)===k).sort((a,c)=>a.date.localeCompare(c.date)||a.ticker.localeCompare(c.ticker)), i=weekInfo(es,b);
+  openSheet(`<h3>${weekLabel(k,true)} <span class="muted" style="font-weight:400;font-size:13px">${fmtD(parseD(k))} – ${fmtD(parseD(addDays(k,6)))}</span></h3>
+    <div class="av2s num ${i.total?"amt":"muted"}" style="font-size:26px;font-weight:700;margin:4px 0 2px">${i.total?won(i.total):"받은 배당이 없어요"}</div>
+    <p class="hint">${basisName()} · ${es.length}건</p>${weekChips(i)}
+    ${es.map(e=>{ const d=parseD(e.date); return `<div class="lrow"><div><div class="t">${esc(e.ticker)}</div><div class="s">${fmtD(d)} (${"일월화수목금토"[d.getDay()]}) · ${e.currency==="KRW"?won(e.perShare):"$"+fmtPs(e.perShare)} × ${qty(e.shares)}주</div></div><div class="r"><div class="p amt">${won(amtOf(e,b))}</div></div></div>`; }).join("")}
+    <div class="btnrow" style="margin-top:12px"><button id="wsClose">닫기</button></div>`,()=>{ $("#wsClose").onclick=closeSheet; });
 }
 function openSheet(html, bind){ const o=$("#sheet"), n=o.cloneNode(false); o.replaceWith(n); n.innerHTML=html; $("#sheetBg").classList.add("open"); bind&&bind(); }
 function closeSheet(){ $("#sheetBg").classList.remove("open"); softRender(); }

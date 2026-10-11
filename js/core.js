@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="3.4", APP_DATE="2026-10-11", APP_NOTES="자산 그래프 비율 조정: 태블릿에서 한눈에 보이는 크기로";
+const APP_VERSION="3.5", APP_DATE="2026-10-12", APP_NOTES="주차별 달력 보기·점 누르면 금액, 계획·설정 탭 정리";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

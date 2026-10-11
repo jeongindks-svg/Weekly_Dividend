@@ -11,6 +11,9 @@ function bindView(){
   on("#goPlan",()=>{ tab="plan"; render(); window.scrollTo(0,0); });
   on("#goHold",()=>{ tab="hold"; render(); window.scrollTo(0,0); });
   v.querySelectorAll("[data-month]").forEach(r=>r.onclick=()=>monthSheet(r.dataset.month));
+  v.querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week));
+  v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
+  const ps=v.querySelector("#pseg"); if(ps) ps.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ planMode=b.dataset.m; render(); } };
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;
     hsc.onpointerdown=e=>{ if(e.pointerType==="mouse"){ dn=true; sx=e.clientX; sl=hsc.scrollLeft; hsc.setPointerCapture(e.pointerId); hsc.style.cursor="grabbing"; } };
     hsc.onpointermove=e=>{ if(dn) hsc.scrollLeft=sl-(e.clientX-sx); };
