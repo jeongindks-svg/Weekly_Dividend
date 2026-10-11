@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="3.2", APP_DATE="2026-10-11", APP_NOTES="내 투자 자산 그래프 추가, 월별 투자금을 매수 기록에서 자동 입력";
+const APP_VERSION="3.3", APP_DATE="2026-10-11", APP_NOTES="자산 그래프를 태블릿에서 크게, 받은 배당 포함 보기 추가";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

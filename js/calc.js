@@ -204,12 +204,13 @@ function assetPrep(){
   });
   const interp=(line,fb,ms)=>{ if(!line.length) return fb; if(ms<=line[0][0]) return line[0][1]; const n=line.length; if(ms>=line[n-1][0]) return line[n-1][1];
     let i=1; while(i<n&&line[i][0]<ms) i++; const [x0,y0]=line[i-1],[x1,y1]=line[i]; return x1===x0?y1:y0+(y1-y0)*(ms-x0)/(x1-x0); };
-  const at=D=>{ const ms=parseD(D).getTime(); let val=0,cost=0;
+  const divs=S.entries.map(e=>[e.date,calc(e).netKRW]).sort((a,c)=>a[0].localeCompare(c[0])); // 받은 배당(세후, 원)
+  const at=D=>{ const ms=parseD(D).getTime(); let val=0,cost=0,div=0; for(const [dd,v] of divs){ if(dd>D) break; div+=v; }
     for(const p of hs){ let sh=0,c=0; const h=p.h;
       if(h.lots&&h.lots.length){ for(const l of h.lots) if(l.date<=D){ sh+=l.shares; c+=lotCostKRW(h,l); } }
       else if(D>=p.own){ sh=h.shares; c=p.cost0; }
       if(sh>0){ val+=sh*interp(p.line,p.fallback,ms)*(p.us?fxAt(D):1); cost+=c; } }
-    return {D,ms,val,cost}; };
+    return {D,ms,val,cost,div}; };
   const lotDates=[...new Set(S.holdings.flatMap(h=>(h.lots||[]).map(l=>l.date)))];
   const first=[...lotDates,...S.holdings.filter(h=>!(h.lots&&h.lots.length)).map(h=>S.entries.filter(e=>e.ticker===h.ticker).map(e=>e.date).sort()[0]).filter(Boolean)].sort()[0]||null;
   return {at,lotDates,first};
