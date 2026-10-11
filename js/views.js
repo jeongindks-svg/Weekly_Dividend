@@ -25,6 +25,18 @@ function alertCard(){
   return `<section class="card"><h2>배당 변동 알림 <small>최근 지급 vs 이전 4회 평균 · ±${+S.settings.divAlertPct||10}% 이상</small></h2>
     ${al.map(a=>`<div class="lrow"><div><div class="t">${esc(a.t)}</div><div class="s num">${ps(a.last.perShare,a.last.currency)} (이전 평균 ${ps(a.avg,a.last.currency)})</div></div><div class="r"><div class="p ${a.ch>0?"up":"down"}" style="font-size:16px">${a.ch>0?"▲ 증액":"▼ 삭감"} ${Math.abs(a.ch).toFixed(1)}%</div></div></div>`).join("")}</section>`;
 }
+// ---- 주차별(달력 느낌): 금액이 큰 종목 3개 + 기타 ----
+function weekInfo(es,b){ const by={}; let total=0; for(const e of es){ const a=amtOf(e,b); by[e.ticker]=(by[e.ticker]||0)+a; total+=a; }
+  const arr=Object.entries(by).sort((x,y)=>y[1]-x[1]); return {total,top:arr.slice(0,3),rest:arr.slice(3).reduce((a,x)=>a+x[1],0)}; }
+function weekChips(i){ if(!i.top.length) return ""; return `<div class="chiprow">${i.top.map(([t,v])=>`<span><b>${esc(t)}</b> ${won(v)}</span>`).join("")}${i.rest>0?`<span class="etc"><b>기타</b> ${won(i.rest)}</span>`:""}</div>`; }
+function weekRow(k,es,b){ const i=weekInfo(es,b);
+  return `<div class="wrow" data-week="${k}" role="button"><div class="wh"><div><div class="t">${weekLabel(k,true)}</div><div class="s">${fmtD(parseD(k))} – ${fmtD(parseD(addDays(k,6)))}</div></div><div class="p num ${i.total?"amt":"muted"}">${i.total?won(i.total):"-"}</div></div>${weekChips(i)}</div>`; }
+function monthWeeks(ym){ const [y,m]=ym.split("-").map(Number), f=isoOf(monday(new Date(y,m-1,1))), out=[]; for(let i=-1;i<=5;i++){ const k=addDays(f,7*i); if(addDays(k,3).startsWith(ym)) out.push(k); } return out; }
+function weekCalCard(){
+  const now=new Date(), ym=ymOf(now.getFullYear(),now.getMonth()), b=basis(), wk=new Map();
+  for(const e of S.entries){ const k=weekKey(e.date); if(!wk.has(k)) wk.set(k,[]); wk.get(k).push(e); }
+  return `<section class="card"><h2>${now.getMonth()+1}월 주차별 <small>${basisName()} · 누르면 내역</small></h2>${monthWeeks(ym).map(k=>weekRow(k,wk.get(k)||[],b)).join("")}</section>`;
+}
 function monthlyCard(){
   const now=new Date(), cy=now.getFullYear(), b=basis();
   const ys=[...new Set([cy,...S.entries.map(e=>+e.date.slice(0,4))])].filter(y=>y<=cy).sort((a,c)=>c-a);
@@ -45,7 +57,7 @@ function viewHome(){
   const start=monday(new Date(y,0,1)); const cells=[]; let max=0;
   for(let i=0;i<52;i++){ const m=new Date(start); m.setDate(m.getDate()+7*i); const v=wk.get(isoOf(m))||0; cells.push({m,v}); if(v>max)max=v; }
   const strip=cells.map(c=>{ const a=max?Math.max(.18,c.v/max):0; const now1=monday(now).getTime()===c.m.getTime();
-    return `<div class="c${now1?" now":""}" style="${c.v>0?`background:color-mix(in srgb, var(--red) ${Math.round(a*100)}%, var(--cell0))`:""}" title="${weekLabel(isoOf(c.m))} · ${won(c.v)}"></div>`; }).join("");
+    return `<div class="c${now1?" now":""}" data-week="${isoOf(c.m)}" role="button" aria-label="${weekLabel(isoOf(c.m))} ${won(c.v)}" style="${c.v>0?`background:color-mix(in srgb, var(--red) ${Math.round(a*100)}%, var(--cell0))`:""}" title="${weekLabel(isoOf(c.m))} · ${won(c.v)}"></div>`; }).join("");
   const labels=[], vals=[], tg=[], m0=monday(now), firstK=wk.size?[...wk.keys()].sort()[0]:isoOf(m0);
   for(let k=firstK; k<=isoOf(m0); k=addDays(k,7)){ labels.push(fmtD(parseD(k))); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
   const hasGoal=tg.some(t=>t>0);
@@ -65,6 +77,7 @@ function viewHome(){
     <div class="stat" data-go-rate title="누르면 배당률 그래프로 이동"><div class="k">원금 대비 주배당률</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:12px">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"계획 탭에서 원금을 넣어요"}</div></div>
   </section>
   ${alertCard()}
+  ${weekCalCard()}
   ${monthlyCard()}
   <section class="card"><h2>주별 받은 배당 <small>옆으로 밀면 이전 주가 보여요</small></h2>${scrollBars({labels,values:vals,target:hasGoal?tg:0})}</section>`;
 }
@@ -252,7 +265,7 @@ function investCard(){
     <p class="muted" id="invSum" style="margin:10px 0 0">${investSumTxt()}</p>
     <p class="muted" style="font-size:12px;margin:4px 0 0">매수 기록이 있으면 그 금액을 자동으로 넣어요(옅은 글씨). 직접 적으면 그 값을 쓰고, 비우면 다시 자동 값으로 돌아가요.</p></section>`;
 }
-let assetRange = "year", assetDiv = true, ASSET=null;
+let assetRange = "year", assetDiv = true, ASSET=null, planMode = "plan";
 function assetView(){
   if(!S.holdings.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">보유 탭에 종목과 매수 기록을 넣으면 내 투자 자산 그래프를 볼 수 있어요.</div></section>`;
   const R=[["year","올해"],["month","이달"],["1m","1달"],["6m","6달"],["1y","1년"],["all","전체"]];
@@ -323,49 +336,34 @@ function viewPlan(){
   const btns=`<div class="btnrow" style="margin-bottom:14px"><button class="primary" id="pAdd">월 추가</button><button id="pGen" class="ghost">자동으로 만들기</button></div>`;
   const note=`<p class="muted" style="font-size:12px;margin:0 2px 12px">실제 배당은 세후 기준이에요. 계획이 세전 금액이면 달성률이 낮게 보일 수 있어요. 기준 주배당은 설정 탭에서 바꿔요.</p>`;
   const clear=`<details class="help" style="margin:0 2px 12px"><summary>더 보기</summary><div class="btnrow" style="margin-top:8px"><button id="pImp">붙여넣기·파일로 불러오기</button><button id="pExp">CSV로 내보내기</button></div><div class="btnrow" style="margin-top:8px"><button class="danger" id="pClear">계획 전체 삭제</button></div></details>`;
-  return curCard+yearOverview()+chart+list+btns+investCard()+note+clear;
+  const pseg=`<div class="seg" id="pseg" style="margin:0 0 14px">${[["plan","월별 계획"],["year","연도별"],["invest","투자금"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${planMode===k}">${l}</button>`).join("")}</div>`;
+  return curCard+pseg+(planMode==="year"?yearOverview()+chart:planMode==="invest"?investCard():list+btns+note+clear);
 }
 
+let SETOPEN = new Set();
 function viewSet(){
   const st=S.settings;
   const num=(id,label,val,step,ph="")=>`<div class="srow"><label for="${id}">${label}</label><input id="${id}" type="number" inputmode="decimal" step="${step}" value="${val}" placeholder="${ph}"></div>`;
-  return `
-  <div class="gh">화면</div>
-  <section class="card" style="padding:4px 16px">
-    <div class="srow"><div><div class="t">금액 숨기기</div><div class="s">모든 금액·수량을 가려요. 이 기기에만 적용돼요.</div></div>
-      <div class="seg" id="hideSeg" style="width:132px"><button data-h="0" aria-pressed="${!HIDE}">보이기</button><button data-h="1" aria-pressed="${HIDE}">숨기기</button></div></div>
-  </section>
-  <div class="gh">목표 · 수익률</div>
-  <section class="card" style="padding:4px 16px">
-    ${num("sgoal","기본 월 목표 (원)",st.goalMonthly||"","1000","예: 500000")}
+  const grp=(id,title,status,body)=>`<details class="sgrp" data-g="${id}"${SETOPEN.has(id)?" open":""}><summary><span class="gt">${title}</span><span class="gs">${status}</span></summary><div class="sbody">${body}</div></details>`;
+  const goal=`${num("sgoal","기본 월 목표 (원)",st.goalMonthly||"","1000","예: 500000")}
     ${num("pby","기준 주배당 (%)",st.baseYield,"0.01")}
     ${num("srp","배당 재투자 비율 (%)",st.reinvestPct,"1")}
     ${num("sda","배당 변동 알림 기준 (%)",st.divAlertPct,"1")}
-    <details class="help" style="margin:0 0 10px"><summary>이 값들이 쓰이는 곳</summary><p style="margin:6px 0 0">기본 월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에 써요. 재투자 비율은 보유 탭의 총수익률(내가 넣은 돈 기준)에, 알림 기준은 요약 탭의 배당 변동 알림에 써요. 달마다 다른 목표는 계획 탭에서 정해요.</p></details>
-  </section>
-  <div class="gh">환율 · 세금</div>
-  <section class="card" style="padding:4px 16px">
-    <div class="srow"><div><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신 · `:""}배당은 입금일 환율로 계산해요</div></div><button class="small" id="fxRef">새로고침</button></div>
+    <p class="muted" style="margin:4px 0 12px;font-size:12.5px">월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에, 재투자 비율은 보유 탭의 총수익률에, 알림 기준은 요약 탭의 배당 변동 알림에 써요.</p>`;
+  const fx=`<div class="srow"><div><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신 · `:""}배당은 입금일 환율로 계산해요</div></div><button class="small" id="fxRef">새로고침</button></div>
     <div class="srow"><label for="sauto">환율 자동 연동</label><input type="checkbox" id="sauto" style="width:22px;height:22px" ${st.autoFx?"checked":""}></div>
     <div id="manualFx" ${st.autoFx?"hidden":""}>${num("sfx","직접 입력 환율",st.fx,"0.01")}</div>
     ${num("stu","미국 배당세 (%)",st.taxUS,"0.1")}
     ${num("stk","국내 배당세 (%)",st.taxKR,"0.1")}
-    <div class="btnrow" style="margin:6px 0 12px"><button class="primary" id="saveSet">저장</button></div>
-  </section>
-  <div class="gh">연동</div>
-  <section class="card">
-    <h2>주가 <small>${st.tdKey?"연결됨":"미연결"}</small></h2>
-    <input id="std" value="${esc(st.tdKey)}" placeholder="Twelve Data API 키를 붙여 넣으세요" autocomplete="off" spellcheck="false" aria-label="Twelve Data API 키">
-    <div class="btnrow" style="margin-top:10px"><button id="tdSave" class="primary">키 저장 · 테스트</button></div>
+    <div class="btnrow" style="margin:6px 0 12px"><button class="primary" id="saveSet">저장</button></div>`;
+  const price=`<input id="std" value="${esc(st.tdKey)}" placeholder="Twelve Data API 키를 붙여 넣으세요" autocomplete="off" spellcheck="false" aria-label="Twelve Data API 키">
+    <div class="btnrow" style="margin:10px 0"><button id="tdSave" class="primary">키 저장 · 테스트</button></div>
     <details class="help"><summary>키 받는 법 · 보관 방식</summary><ol>
       <li>twelvedata.com 에서 무료 가입 (카드 불필요)</li><li>대시보드 API Keys에서 키 복사</li><li>위 칸에 붙여 넣고 저장</li></ol>
-      키는 이 기기에만 저장돼요. 구글 동기화와 백업 파일에는 들어가지 않아서 다른 기기에서는 따로 넣어야 해요. 공유 기기에서는 쓰고 나서 지워 주세요. 무료는 하루 800회, 분당 8회까지예요. 국내 종목은 보유 탭에서 현재가를 직접 넣어 주세요.</details>
-  </section>
-  <section class="card">
-    <h2>구글 계정 <small>${st.gLinked?"연결됨":"미연결"}</small></h2>
-    <p class="muted" style="margin:0 0 10px">같은 구글 계정으로 연결하면 기기끼리 기록이 합쳐져요.${st.gLinked?(Drive.lastSync?` 이 기기 마지막 동기화 ${new Date(Drive.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:" 이 기기에서는 아직 동기화 전이에요."):""}</p>
+      키는 이 기기에만 저장돼요. 구글 동기화와 백업 파일에는 들어가지 않아서 다른 기기에서는 따로 넣어야 해요. 공유 기기에서는 쓰고 나서 지워 주세요. 무료는 하루 800회, 분당 8회까지예요. 국내 종목은 보유 탭에서 현재가를 직접 넣어 주세요.</details>`;
+  const google=`<p class="muted" style="margin:0 0 10px">같은 구글 계정으로 연결하면 기기끼리 기록이 합쳐져요.${st.gLinked?(Drive.lastSync?` 이 기기 마지막 동기화 ${new Date(Drive.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:" 이 기기에서는 아직 동기화 전이에요."):""}</p>
     <input id="sgc" value="${esc(st.gClientId)}" placeholder="구글 OAuth 클라이언트 ID" autocomplete="off" spellcheck="false" aria-label="구글 OAuth 클라이언트 ID">
-    <div class="btnrow" style="margin-top:10px"><button class="primary" id="gLink">${st.gLinked?"지금 동기화":"구글 계정 연결"}</button><button id="gShare">연결 링크 복사</button>${st.gLinked?`<button class="ghost" id="gUnlink">연결 해제</button>`:""}</div>
+    <div class="btnrow" style="margin:10px 0"><button class="primary" id="gLink">${st.gLinked?"지금 동기화":"구글 계정 연결"}</button><button id="gShare">연결 링크 복사</button>${st.gLinked?`<button class="ghost" id="gUnlink">연결 해제</button>`:""}</div>
     <details class="help"><summary>클라이언트 ID 만드는 법 (처음 한 번)</summary><ol>
       <li>console.cloud.google.com 접속 → 새 프로젝트 만들기</li>
       <li>API 및 서비스 → 라이브러리 → <b>Google Drive API</b> 사용 설정</li>
@@ -373,13 +371,21 @@ function viewSet(){
       <li>사용자 인증 정보 → OAuth 클라이언트 ID → 유형 <b>웹 애플리케이션</b></li>
       <li>승인된 JavaScript 원본에 <b>${esc(location.origin&&location.origin.startsWith("http")?location.origin:"https://내아이디.github.io")}</b> 추가 → 만들기</li>
       <li>나온 클라이언트 ID를 위 칸에 붙여 넣고 ‘구글 계정 연결’</li></ol>
-      다른 기기에서는 ‘연결 링크 복사’로 보낸 링크를 열면 ID가 자동으로 들어가요. 로그인은 보통 알아서 이어지고, 풀리면 화면을 한 번 누르거나 위쪽 ☁ 버튼을 눌러 주세요.</details>
-  </section>
-  <div class="gh">데이터</div>
-  <section class="card">
-    <div class="btnrow"><button id="syOut">백업 파일 저장</button><button id="syIn">파일 합치기</button><button id="csv" class="ghost">CSV 내보내기</button></div>
+      다른 기기에서는 ‘연결 링크 복사’로 보낸 링크를 열면 ID가 자동으로 들어가요. 로그인이 풀리면 위쪽 ☁ 버튼을 눌러 다시 연결해 주세요.</details>`;
+  const data=`<div class="btnrow" style="margin-bottom:10px"><button id="syOut">백업 파일 저장</button><button id="syIn">파일 합치기</button><button id="csv" class="ghost">CSV 내보내기</button></div>
     <input type="file" id="syFile" accept=".json,application/json,text/plain" hidden>
-    <div class="btnrow" style="margin-top:10px"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div>
+    <div class="btnrow" style="margin-bottom:12px"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div>`;
+  return `
+  <section class="card" style="padding:4px 16px">
+    <div class="srow"><div><div class="t">금액 숨기기</div><div class="s">모든 금액·수량을 가려요. 이 기기에만 적용돼요.</div></div>
+      <div class="seg" id="hideSeg" style="width:132px"><button data-h="0" aria-pressed="${!HIDE}">보이기</button><button data-h="1" aria-pressed="${HIDE}">숨기기</button></div></div>
+  </section>
+  <section class="card" style="padding:0 16px">
+    ${grp("goal","목표 · 수익률",`재투자 ${st.reinvestPct}%`,goal)}
+    ${grp("fx","환율 · 세금",`${st.fx.toLocaleString()}원 · ${st.taxUS}% / ${st.taxKR}%`,fx)}
+    ${grp("price","주가 연동",st.tdKey?"연결됨":"미연결",price)}
+    ${grp("google","구글 계정",st.gLinked?"연결됨":"미연결",google)}
+    ${grp("data","백업 · 데이터","",data)}
   </section>
   <p class="muted" style="text-align:center;font-size:12px;margin:4px 0 16px">v${APP_VERSION} · ${APP_DATE}${justUpdated?` · <span class="up">방금 업데이트 (v${esc(prevVer)} → v${APP_VERSION})</span>`:""}<br>${APP_NOTES}</p>`;
 }

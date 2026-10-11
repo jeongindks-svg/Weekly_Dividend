@@ -290,3 +290,24 @@ input.inv.auto{color:var(--muted);font-style:italic}
   .assetcard .rtabs button{font-size:16px;padding:10px 20px}
   .assetcard .note{font-size:12.5px}
 }
+
+/* 주차별 달력 · 설정 접이식 */
+.wrow{padding:12px 0;border-top:1px solid var(--rule);cursor:pointer}
+.wrow:first-of-type{border-top:none}
+.wrow .wh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.wrow .t{font-weight:600}.wrow .s{font-size:12px;color:var(--muted);margin-top:1px}
+.wrow .p{font-size:17px;font-weight:700;white-space:nowrap}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chiprow span{font-size:12px;background:var(--bg);border-radius:8px;padding:3px 9px;color:var(--ink);white-space:nowrap}
+.chiprow span b{font-weight:600;margin-right:3px}
+.chiprow .etc{color:var(--muted)}
+.strip .c{cursor:pointer}
+details.sgrp{border-top:1px solid var(--rule)}
+details.sgrp:first-of-type{border-top:none}
+details.sgrp summary{list-style:none;display:flex;align-items:center;gap:10px;padding:16px 0;cursor:pointer}
+details.sgrp summary::-webkit-details-marker{display:none}
+details.sgrp .gt{font-weight:600;font-size:16px}
+details.sgrp .gs{margin-left:auto;font-size:13px;color:var(--muted)}
+details.sgrp summary::after{content:"›";color:var(--muted);font-size:20px;transition:transform .15s}
+details.sgrp[open] summary::after{transform:rotate(90deg)}
+details.sgrp .sbody{padding:0 0 4px}
