@@ -35,6 +35,13 @@ function bindView(){
   on("#pClear",()=>{ if(!confirm("계획을 모두 삭제할까요?")) return; S.plan.forEach(x=>markDeleted(x.id)); S.plan=[]; persist(); render(); });
   const py=v.querySelector("#pby"); if(py) py.onchange=()=>{ const n=+py.value; if(n>0){ S.settings.baseYield=n; touchSettings(); persist(); toast("기준 주배당을 저장했어요"); } };
   on("#refQ",async()=>{ toast("주가를 불러오는 중…"); if(await refreshQuotes(true)) toast("주가를 새로 불러왔어요"); });
+  const at=v.querySelector("#artabs"); if(at) at.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ assetRange=b.dataset.r; render(); } };
+  const asv=v.querySelector("#assetsvg"); if(asv&&ASSET){ const A=ASSET, head=$("#aHead"), cx=$("#acx"), cd=$("#acd");
+    const show=ev=>{ const r=asv.getBoundingClientRect(); const x=(ev.clientX-r.left)/r.width*A.W; let best=null,bd=1e9; for(const p of A.pts){ const dx=Math.abs(A.X(p.ms)-x); if(dx<bd){ bd=dx; best=p; } }
+      if(!best) return; head.innerHTML=assetHead(best,false); cx.setAttribute("x1",A.X(best.ms)); cx.setAttribute("x2",A.X(best.ms)); cx.setAttribute("visibility","visible");
+      if(best.val>0){ cd.setAttribute("cx",A.X(best.ms)); cd.setAttribute("cy",A.Y(best.val)); cd.setAttribute("visibility","visible"); } };
+    const reset=()=>{ head.innerHTML=assetHead(A.pts[A.pts.length-1],true); cx.setAttribute("visibility","hidden"); cd.setAttribute("visibility","hidden"); };
+    asv.addEventListener("pointermove",show); asv.addEventListener("pointerdown",show); asv.addEventListener("pointerleave",reset); asv.addEventListener("pointerup",ev=>{ if(ev.pointerType!=="mouse") setTimeout(reset,1500); }); }
   const rs=v.querySelector("#rseg"); if(rs) rs.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ rateMode=b.dataset.m; render(); } };
   const cs=v.querySelector("#cseg"); if(cs) cs.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ chartMode=b.dataset.m; render(); } };
   on("#goGoal",()=>{ tab="set"; render(); setTimeout(()=>{ const g=$("#sgoal"); g&&g.focus(); },50); });

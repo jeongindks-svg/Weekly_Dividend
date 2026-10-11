@@ -156,7 +156,7 @@ function tickerDetail(t){
 
 function viewChart(){
   const now=new Date(), y=now.getFullYear(), b=basis();
-  const seg=`<div class="seg" id="cseg" style="margin-bottom:14px">${[["month","월별"],["week","주별"],["cum","누적"],["ticker","종목"],["rate","배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>`;
+  const seg=`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["month","월별"],["week","주별"],["cum","누적"],["ticker","종목"],["rate","배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>`;
   if(chartMode==="ticker"){
     const ts=[...new Set(S.entries.map(e=>e.ticker))].sort();
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
@@ -170,6 +170,7 @@ function viewChart(){
         <p class="muted" style="margin:0 2px 12px">위에서 종목을 고르면 그 종목만 날짜별로 볼 수 있어요.</p>`; }
     return seg+chips+tickerDetail(tickerSel);
   }
+  if(chartMode==="asset") return seg+assetView();
   if(chartMode==="rate") return seg+rateView();
   const months=new Array(12).fill(0).map((_,i)=>actualYm(ymOf(y,i),b)), goals=months.map((_,i)=>goalFor(y,i)), hasGoal=goals.some(g=>g>0);
   const firstThisYear=S.entries.map(e=>e.date).filter(d=>d.startsWith(y+"-")).sort()[0];
@@ -244,12 +245,56 @@ function investCard(){
   const ys=new Set([cy]); S.plan.forEach(p=>ys.add(+p.ym.slice(0,4))); Object.keys(inv).forEach(ym=>ys.add(+ym.slice(0,4)));
   const years=[...ys].sort((a,c)=>a-c); if(!years.includes(investYear)) investYear=cy;
   const y=investYear;
-  const rows=Array.from({length:12},(_,i)=>{ const ym=ymOf(y,i), p=planOf(ym), v=inv[ym];
-    return `<tr${ym===curYm?' class="cur"':""}><td class="l"><b>${i+1}월</b></td><td class="l muted">${p&&p.invest?hz(esc(p.invest)):"-"}</td><td><input class="inv num" data-ym="${ym}" type="${HIDE?"password":"number"}" inputmode="decimal" step="any" min="0" value="${v||""}" placeholder="0" aria-label="${y}년 ${i+1}월 투자금액 (만원)"></td></tr>`; }).join("");
+  const manual=investManual(), rows=Array.from({length:12},(_,i)=>{ const ym=ymOf(y,i), p=planOf(ym), v=inv[ym];
+    return `<tr${ym===curYm?' class="cur"':""}><td class="l"><b>${i+1}월</b></td><td class="l muted">${p&&p.invest?hz(esc(p.invest)):"-"}</td><td><input class="inv num${manual[ym]?"":" auto"}" data-ym="${ym}" type="${HIDE?"password":"number"}" inputmode="decimal" step="any" min="0" value="${v||""}" placeholder="0" aria-label="${y}년 ${i+1}월 투자금액 (만원)"></td></tr>`; }).join("");
   return `<section class="card"><h2>월별 투자금액 <small>단위: 만원</small></h2>${yearChips("iychips",years,y)}
     <div class="tbl"><table><thead><tr><th class="l">월</th><th class="l">계획</th><th>실제 투자</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted" id="invSum" style="margin:10px 0 0">${investSumTxt()}</p>
-    <p class="muted" style="font-size:12px;margin:4px 0 0">그달 실제로 넣은 돈을 적으면 바로 저장돼요. 비우면 지워져요.</p></section>`;
+    <p class="muted" style="font-size:12px;margin:4px 0 0">매수 기록이 있으면 그 금액을 자동으로 넣어요(옅은 글씨). 직접 적으면 그 값을 쓰고, 비우면 다시 자동 값으로 돌아가요.</p></section>`;
+}
+let assetRange = "year", ASSET=null;
+function assetView(){
+  if(!S.holdings.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">보유 탭에 종목과 매수 기록을 넣으면 내 투자 자산 그래프를 볼 수 있어요.</div></section>`;
+  const R=[["year","올해"],["month","이달"],["1m","1달"],["6m","6달"],["1y","1년"],["all","전체"]];
+  const d=assetData(assetRange), pts=d.pts;
+  const tabs=`<div class="rtabs" id="artabs">${R.map(([k,l])=>`<button data-r="${k}" aria-pressed="${assetRange===k}">${l}</button>`).join("")}</div>`;
+  if(!pts.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">이 기간에는 보유 기록이 없어요.<br>매수 기록이 있는 기간을 골라 보세요.</div>${tabs}</section>`;
+  const W=400,H=290,pl=8,pr=58,pt=14,pb=26, t0=parseD(d.from).getTime(), t1=parseD(d.axisEnd).getTime();
+  const vals=pts.flatMap(p=>[p.val,p.cost]).filter(v=>v>0), hi0=Math.max(...vals), lo0=Math.min(...vals), padv=(hi0-lo0)*.06||hi0*.05, hi=hi0+padv, lo=Math.max(0,lo0-padv);
+  const X=ms=>pl+(W-pl-pr)*(t1===t0?0:(ms-t0)/(t1-t0)), Y=v=>pt+(H-pt-pb)*(1-(v-lo)/((hi-lo)||1));
+  let cpath="", prev=null; for(const p of pts){ if(!(p.cost>0)) continue; cpath+=prev==null?`M${X(p.ms)},${Y(p.cost)}`:`H${X(p.ms)}V${Y(p.cost)}`; prev=p; }
+  const cx1=prev?X(prev.ms):0, area=cpath?`${cpath}L${cx1},${H-pb}L${X(pts.find(p=>p.cost>0).ms)},${H-pb}Z`:"";
+  const aline=pts.filter(p=>p.val>0).map(p=>`${X(p.ms).toFixed(1)},${Y(p.val).toFixed(1)}`).join(" "), lp=[...pts].reverse().find(p=>p.val>0);
+  // x축 눈금
+  const ticks=[]; const sd=parseD(d.from), ed=parseD(d.axisEnd), todayMs=parseD(todayStr()).getTime();
+  if(assetRange==="year"||assetRange==="6m"||assetRange==="1y"){ const stepM=assetRange==="1y"?2:1; for(let c=new Date(sd.getFullYear(),sd.getMonth()+(assetRange==="year"?0:1),1); c<=ed; c=new Date(c.getFullYear(),c.getMonth()+stepM,1)) ticks.push([c.getTime(),(c.getMonth()+1)+"월"]); }
+  else if(assetRange==="month"){ for(let day=1; day<=ed.getDate(); day+=5) ticks.push([new Date(ed.getFullYear(),ed.getMonth(),day).getTime(),day+"일"]); }
+  else if(assetRange==="1m"){ for(let c=new Date(sd); c<=ed; c=new Date(c.getFullYear(),c.getMonth(),c.getDate()+7)) ticks.push([c.getTime(),(c.getMonth()+1)+"/"+c.getDate()]); }
+  else { const n=Math.min(5,Math.max(1,Math.round((ed-sd)/864e5/60))); for(let i=0;i<=n;i++){ const c=new Date(sd.getTime()+(ed-sd)*i/n); ticks.push([c.getTime(),String(c.getFullYear()).slice(2)+"."+(c.getMonth()+1)]); } }
+  const xl=ticks.map(([ms,l])=>`<text x="${X(ms).toFixed(1)}" y="${H-6}" font-size="11.5" text-anchor="${X(ms)<pl+14?"start":X(ms)>W-pr-14?"end":"middle"}" fill="${ms>todayMs?"#4b5060":"#e5e7eb"}">${l}</text>`).join("");
+  ASSET={pts,X,Y,W,H,pl,pr,pt,pb};
+  const last=pts[pts.length-1];
+  return `<section class="assetcard">
+    <div class="lg"><span><i style="background:#ff6584"></i>자산</span><span><i style="background:#6b7384"></i>원금</span></div>
+    <div id="aHead" class="ahead">${assetHead(last,true)}</div>
+    <svg id="assetsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="내 투자 자산 그래프" style="touch-action:pan-y">
+      <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8597" stop-opacity=".32"/><stop offset="1" stop-color="#7d8597" stop-opacity="0"/></linearGradient>
+        <filter id="agl" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4"/></filter></defs>
+      ${area?`<path d="${area}" fill="url(#ag)"/>`:""}
+      ${cpath?`<path d="${cpath}" fill="none" stroke="#6b7384" stroke-width="2.4" stroke-linejoin="round"/>`:""}
+      ${aline?`<polyline points="${aline}" fill="none" stroke="#ff6584" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`:""}
+      ${lp?`<circle cx="${X(lp.ms)}" cy="${Y(lp.val)}" r="11" fill="#ff6584" opacity=".35" filter="url(#agl)"/><circle cx="${X(lp.ms)}" cy="${Y(lp.val)}" r="6" fill="#ff6584"/>`:""}
+      <line id="acx" x1="0" x2="0" y1="${pt}" y2="${H-pb}" stroke="#9aa0ac" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/><circle id="acd" r="5" fill="#fff" visibility="hidden"/>
+      <text x="${W-2}" y="${pt+9}" font-size="12.5" text-anchor="end" fill="#b3b8c4">${mfmt(hi)}</text>
+      <text x="${W-2}" y="${H-pb-3}" font-size="12.5" text-anchor="end" fill="#b3b8c4">${mfmt(lo)}</text>
+      ${xl}
+    </svg>${tabs}
+    <p class="note">자산은 매수 기록과 배당 입금일의 주가로 이은 추정선이에요. 원금은 그날까지 산 금액이에요.</p></section>`;
+}
+function assetHead(p,isNow){
+  const gain=p.val-p.cost, pc=p.cost>0?gain/p.cost*100:0, dt=parseD(p.D);
+  return `<div class="ad">${isNow?"지금":(dt.getMonth()+1)+"월 "+dt.getDate()+"일"}</div><div class="av2 num">${won(p.val)}</div>
+    <div class="num ${gain>=0?"upd":"dnd"}">${wonS(gain)} (${pct(pc,1)}) <span class="adim">원금 ${won(p.cost)}</span></div>`;
 }
 function viewPlan(){
   const now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth()), b=basis(), inv=investMap();
