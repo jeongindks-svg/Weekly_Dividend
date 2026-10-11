@@ -259,7 +259,7 @@ function assetView(){
   const d=assetData(assetRange), pts=d.pts; pts.forEach(p=>{ p.tot=p.val+(assetDiv?p.div:0); });
   const tabs=`<div class="rtabs" id="artabs">${R.map(([k,l])=>`<button data-r="${k}" aria-pressed="${assetRange===k}">${l}</button>`).join("")}</div>`;
   if(!pts.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">이 기간에는 보유 기록이 없어요.<br>매수 기록이 있는 기간을 골라 보세요.</div>${tabs}</section>`;
-  const big=window.innerWidth>=700, k=big?1.55:1, W=big?680:400,H=big?340:290,pl=8,pr=big?92:58,pt=14,pb=big?36:26, t0=parseD(d.from).getTime(), t1=parseD(d.axisEnd).getTime();
+  const big=window.innerWidth>=700, k=big?1.25:1, W=big?720:400,H=big?300:290,pl=8,pr=big?84:58,pt=14,pb=big?32:26, t0=parseD(d.from).getTime(), t1=parseD(d.axisEnd).getTime();
   const vals=pts.flatMap(p=>[p.tot,p.cost]).filter(v=>v>0), hi0=Math.max(...vals), lo0=Math.min(...vals), padv=(hi0-lo0)*.06||hi0*.05, hi=hi0+padv, lo=Math.max(0,lo0-padv);
   const X=ms=>pl+(W-pl-pr)*(t1===t0?0:(ms-t0)/(t1-t0)), Y=v=>pt+(H-pt-pb)*(1-(v-lo)/((hi-lo)||1));
   let cpath="", prev=null; for(const p of pts){ if(!(p.cost>0)) continue; cpath+=prev==null?`M${X(p.ms)},${Y(p.cost)}`:`H${X(p.ms)}V${Y(p.cost)}`; prev=p; }
