@@ -95,7 +95,10 @@ function portfolio(){
   return {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing,rows,uCost,uVal,kCost,kVal};
 }
 const oddKrw=()=>S.holdings.filter(h=>h.currency==="KRW"&&!h.krwOk&&/^[A-Z][A-Z0-9.\-]{0,6}$/.test(h.ticker));
-function investMap(){ const m={}; for(const v of S.invest) if(+v.amount>0) m[v.ym]=(m[v.ym]||0)+(+v.amount); return m; }
+// 월별 투자금(만원): 직접 적은 값이 있으면 그 값, 없으면 매수 기록의 매수금액(원화 환산) 합계
+function investManual(){ const m={}; for(const v of S.invest) if(+v.amount>0) m[v.ym]=(m[v.ym]||0)+(+v.amount); return m; }
+function investAuto(){ const m={}; for(const h of S.holdings) for(const l of (h.lots||[])){ const ym=l.date.slice(0,7); m[ym]=(m[ym]||0)+lotCostKRW(h,l)/10000; } for(const k in m) m[k]=Math.round(m[k]*10)/10; return m; }
+function investMap(){ const a=investAuto(), u=investManual(), m=Object.assign({},a); for(const k in u) m[k]=u[k]; return m; }
 function monthRows(y){ const a=Array.from({length:12},()=>({net:0,gross:0,n:0}));
   for(const e of S.entries){ if(!e.date.startsWith(y+"-")) continue; const m=+e.date.slice(5,7)-1, c=calc(e); a[m].net+=c.netKRW; a[m].gross+=c.grossKRW; a[m].n++; }
   return a; }
@@ -182,4 +185,46 @@ function rateView(){
     body=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">종목별 배당률 <small>주당 배당 ÷ 산 가격(평단)</small></h2>${items}</section>`;
   }
   return hero+seg+body+`<p class="muted" style="font-size:12px;margin:0 2px 12px">원금은 보유 탭에 넣은 평단 × 수량의 합이에요(평단이 없으면 계획 탭의 월 원금). 종목별은 산 가격 대비라 달러 종목은 달러 평단 기준이에요. 세전/세후는 계획 탭에서 바꿔요.</p>`;
+}
+
+// ---------- 자산 그래프 (매수 기록 + 배당 입금일 주가로 추정) ----------
+const mfmt = n => { if(HIDE) return "•••"; const a=Math.abs(n); return a>=1e8?(n/1e8).toFixed(1)+"억": a>=1e6?(n/1e6).toFixed(1)+"백만": a>=1e4?Math.round(n/1e4)+"만": Math.round(n).toLocaleString(); };
+function assetPrep(){
+  const fxKeys=Object.keys(S.fxCache).sort(), today=todayStr();
+  const fxAt=D=>{ if(D>=today) return S.settings.fx; let v=null; for(const k of fxKeys){ if(k<=D) v=S.fxCache[k]; else break; } return v||S.settings.fx; };
+  const hs=S.holdings.map(h=>{
+    const pts=new Map(), pc=S.priceCache[h.ticker]||{};
+    for(const d in pc) if(pc[d]>0) pts.set(d,pc[d]);
+    for(const e of S.entries) if(e.ticker===h.ticker&&e.price>0&&!pts.has(e.date)) pts.set(e.date,e.price);
+    for(const l of (h.lots||[])) if(l.shares>0&&!pts.has(l.date)) pts.set(l.date,lotBase(l)/l.shares);
+    const cp=curPrice(h); if(cp>0) pts.set(today,cp);
+    const line=[...pts].sort((a,c)=>a[0].localeCompare(c[0])).map(([d,p])=>[parseD(d).getTime(),p]);
+    const own=h.lots&&h.lots.length?[...h.lots].map(l=>l.date).sort()[0]:(S.entries.filter(e=>e.ticker===h.ticker).map(e=>e.date).sort()[0]||today);
+    return {h,line,own,us:h.currency!=="KRW",fallback:+h.avgCost>0?+h.avgCost:0,cost0:holdCalc(h).cost};
+  });
+  const interp=(line,fb,ms)=>{ if(!line.length) return fb; if(ms<=line[0][0]) return line[0][1]; const n=line.length; if(ms>=line[n-1][0]) return line[n-1][1];
+    let i=1; while(i<n&&line[i][0]<ms) i++; const [x0,y0]=line[i-1],[x1,y1]=line[i]; return x1===x0?y1:y0+(y1-y0)*(ms-x0)/(x1-x0); };
+  const at=D=>{ const ms=parseD(D).getTime(); let val=0,cost=0;
+    for(const p of hs){ let sh=0,c=0; const h=p.h;
+      if(h.lots&&h.lots.length){ for(const l of h.lots) if(l.date<=D){ sh+=l.shares; c+=lotCostKRW(h,l); } }
+      else if(D>=p.own){ sh=h.shares; c=p.cost0; }
+      if(sh>0){ val+=sh*interp(p.line,p.fallback,ms)*(p.us?fxAt(D):1); cost+=c; } }
+    return {D,ms,val,cost}; };
+  const lotDates=[...new Set(S.holdings.flatMap(h=>(h.lots||[]).map(l=>l.date)))];
+  const first=[...lotDates,...S.holdings.filter(h=>!(h.lots&&h.lots.length)).map(h=>S.entries.filter(e=>e.ticker===h.ticker).map(e=>e.date).sort()[0]).filter(Boolean)].sort()[0]||null;
+  return {at,lotDates,first};
+}
+function assetData(range){
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth(), today=todayStr(), P=assetPrep(), dstr=n=>isoOf(new Date(y,m,now.getDate()-n));
+  let from,axisEnd=today;
+  if(range==="year"){ from=y+"-01-01"; axisEnd=y+"-12-31"; }
+  else if(range==="month"){ from=ymOf(y,m)+"-01"; axisEnd=isoOf(new Date(y,m+1,0)); }
+  else if(range==="1m") from=dstr(30); else if(range==="6m") from=dstr(182); else if(range==="1y") from=dstr(365);
+  else from=P.first||today;
+  if(P.first&&from<P.first&&range==="all") from=P.first;
+  const t0=parseD(from).getTime(), t1=parseD(today).getTime(), days=Math.max(1,Math.round((t1-t0)/864e5)), step=Math.max(1,Math.ceil(days/80));
+  const ds=new Set([from,today]); for(let d=from; d<today; d=addDays(d,step)) ds.add(d);
+  for(const d of P.lotDates) if(d>=from&&d<=today) ds.add(d);
+  const pts=[...ds].sort().map(P.at).filter(p=>p.cost>0||p.val>0);
+  return {pts,from,axisEnd,P};
 }
