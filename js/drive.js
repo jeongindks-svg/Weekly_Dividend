@@ -61,7 +61,7 @@ const Drive = {
     if(this.busy){ this.again=true; return; }
     if(!online()){ if(interactive) toast("인터넷 연결 후 동기화할 수 있어요"); return; }
     // 자동 동기화는 로그인 창을 절대 띄우지 않아요. 로그인이 만료되면 위쪽 ☁ 를 눌러 다시 연결할 때까지 변경 사항을 모아 둬요.
-    if(!interactive){ if(!this.linked()) return; if(!this.ready()){ this.status="needs"; this.setChip(); return; } }
+    if(!interactive){ if(!this.linked()) return; if(!this.ready()){ this.status="needs"; this.setChip(); this.trySilent(false); return; } }
     this.busy=true; this.setChip("동기화 중…");
     try{
       if(!this.ready()) await this.auth(false);
@@ -88,6 +88,15 @@ const Drive = {
       if(this.again){ this.again=false; if(this.ready()) this.schedulePush(); }
     }
   },
+  // 구글 계정이 이 브라우저에 로그인돼 있으면 화면 없이 토큰을 다시 받아 자동으로 이어 가요.
+  // 사용자가 화면을 누른 순간(gesture)에는 브라우저가 이 요청을 막지 않아서 성공률이 높아요. 실패하면 조용히 넘어가고 다음에 다시 시도해요.
+  async trySilent(gesture){
+    if(!this.linked()||this.ready()||this.busy||this.trying||!online()||document.visibilityState!=="visible") return false;
+    const now=Date.now(); if(gesture){ if(now-this.gestureAt<3*60000) return false; this.gestureAt=now; } else { if(now<this.noSilentUntil) return false; this.noSilentUntil=now+5*60000; }
+    this.trying=true;
+    try{ await this.auth(true); this.status="ok"; this.noSilentUntil=0; }catch(e){ this.trying=false; return false; }
+    this.trying=false; await this.sync(false); return true;
+  },
   schedulePush(){
     this.setChip();
     if(!this.linked()) return;
@@ -96,7 +105,7 @@ const Drive = {
   // 앱이 열려 있는 동안 1분마다 다른 기기의 변경을 가져와요
   startAuto(){
     if(this.poll) return;
-    this.poll=setInterval(()=>{ if(document.visibilityState==="visible" && this.ready()) this.sync(false); },5*60000); // 5분마다 다른 기기 변경 확인
+    this.poll=setInterval(()=>{ if(document.visibilityState!=="visible") return; if(this.ready()) this.sync(false); else this.trySilent(false); },5*60000); // 5분마다 다른 기기 변경 확인
   },
   setChip(t){
     const c=$("#syncChip"); if(!c) return;

@@ -120,7 +120,8 @@ backgroundWork();
 Drive.startAuto();
 if(Drive.linked()){ Drive.loadGIS().catch(()=>{}); Drive.sync(false); }
 window.addEventListener("online", ()=>{ backgroundWork(); if(Drive.linked()) Drive.sync(false); });
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Drive.linked()&&Date.now()-Drive.lastSync>2*60000) Drive.sync(false); } });
+document.addEventListener("pointerdown",()=>{ if(Drive.linked()&&!Drive.ready()) Drive.trySilent(true); },true);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(Drive.linked()&&!Drive.ready()) Drive.trySilent(false); if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Drive.linked()&&Date.now()-Drive.lastSync>2*60000) Drive.sync(false); } });
 
 // ---------- 서비스 워커 (오프라인·빠른 업데이트) ----------
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){

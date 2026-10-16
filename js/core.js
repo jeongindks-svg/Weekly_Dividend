@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="6.0", APP_DATE="2026-10-16", APP_NOTES="매도·실현손익, 매수 사유 메모, 입출금(실투자원금), 월 달력";
+const APP_VERSION="6.1", APP_DATE="2026-10-16", APP_NOTES="구글 로그인돼 있으면 자동으로 다시 연결해 동기화";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
