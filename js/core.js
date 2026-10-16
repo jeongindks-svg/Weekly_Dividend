@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="4.0", APP_DATE="2026-10-16", APP_NOTES="디자인 전면 개편·새 아이콘, 일주일 요일별 보기, 일반 주식 지원";
+const APP_VERSION="5.0", APP_DATE="2026-10-16", APP_NOTES="리뉴얼: 포트폴리오·배당·분석(비중·재투자) 구조, 계좌·유형·지역 분류";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

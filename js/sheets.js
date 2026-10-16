@@ -178,6 +178,9 @@ function holdSheet(id){
     <div class="preview num" id="hpv" style="font-size:13px"></div>
     <div class="grid2"><div><label class="f" for="hm">현재가 직접 입력 <span class="hcur"></span></label><input id="hm" type="number" inputmode="decimal" step="any" value="${h&&h.manualPrice?h.manualPrice:""}" placeholder="자동이면 비워 두기"></div>
     <div><label class="f" for="hf">배당 주기</label><select id="hf">${FREQS.map(f=>`<option value="${f}" ${(h?h.freq||"주배당":"주배당")===f?"selected":""}>${f==="배당 없음"?"배당 없음 (일반 주식)":f}</option>`).join("")}</select></div></div>
+    <div class="grid2"><div><label class="f" for="hacc">계좌</label><input id="hacc" list="acclist" value="${esc(h?h.account||"":"")}" placeholder="일반"><datalist id="acclist">${accountsAll().map(a=>`<option value="${esc(a)}">`).join("")}</datalist></div>
+      <div><label class="f" for="hty">자산 유형</label><select id="hty"><option value="">자동</option>${TYPES.map(t=>`<option ${h&&h.assetType===t?"selected":""}>${t}</option>`).join("")}</select></div></div>
+    <label class="f" for="hrg">지역</label><select id="hrg"><option value="">자동 (미국 $ · 국내 ₩)</option>${REGIONS.map(t=>`<option ${h&&h.region===t?"selected":""}>${t}</option>`).join("")}</select>
     <div id="hpdbox"><label class="f">지급 요일 <span class="muted">(여러 개 선택 · 이번 주 일정에 표시돼요)</span></label><div class="dowrow" id="hpd">${[...DOWN].map((c,i)=>`<button type="button" data-d="${i}" aria-pressed="${selDays.includes(i)}">${c}</button>`).join("")}</div></div>
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#haw"];
@@ -222,7 +225,7 @@ function holdSheet(id){
         const d0=derive(), t=$("#ht").value.trim().toUpperCase(), sh=lots.length?d0.sh:+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
         if(h&&lots.length&&!hadLots&&Math.abs(d0.sh-h.shares)>1e-6&&!confirm(`매수 기록의 합계는 ${d0.sh}주인데 지금 보유 수량은 ${h.shares}주예요.\n저장하면 보유 수량이 ${d0.sh}주로 바뀌어요. 계속할까요?`)) return;
-        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,fxAvg:lots.length&&cur!=="KRW"?fxAvg:0,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payDays:[...selDays].sort(),payday:"",updated:Date.now(),krwOk:cur==="KRW"};
+        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,fxAvg:lots.length&&cur!=="KRW"?fxAvg:0,currency:cur,manualPrice:+$("#hm").value||0,account:$("#hacc").value.trim(),assetType:$("#hty").value,region:$("#hrg").value,freq:$("#hf").value,payDays:[...selDays].sort(),payday:"",updated:Date.now(),krwOk:cur==="KRW"};
         if(cur==="KRW"){ Object.assign(rec,{avgCost:lots.length?d0.avg:(+$("#haw").value||0),avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
         else { const aU=lots.length?d0.avg:(+$("#hau").value||0), aK=lots.length?d0.avgK:(+$("#hak").value||0); Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }
         if(h) Object.assign(h,rec); else S.holdings.push(Object.assign({id:uid()},rec));

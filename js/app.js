@@ -13,6 +13,11 @@ function bindView(){
   v.querySelectorAll("[data-month]").forEach(r=>r.onclick=()=>monthSheet(r.dataset.month));
   v.querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week));
   v.querySelectorAll("[data-day]").forEach(r=>r.onclick=()=>daySheet(r.dataset.day));
+  const segOf=(id,fn)=>{ const el=v.querySelector(id); if(el) el.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ fn(b); render(); } }; };
+  segOf("#hsort",b=>holdSort=b.dataset.s); segOf("#hfilter",b=>holdFilter=b.dataset.a); segOf("#dseg",b=>divMode=b.dataset.m); segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
+  v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; render(); window.scrollTo(0,0); });
+  on("#addHold2",()=>holdSheet()); on("#goCal",()=>{ tab="div"; divMode="month"; render(); window.scrollTo(0,0); });
+  ["#sim-m","#sim-p","#sim-d"].forEach(sel=>{ const el=v.querySelector(sel); if(el) el.onchange=()=>{ S.settings.sim={monthly:Math.max(0,+$("#sim-m").value||0),priceG:+$("#sim-p").value||0,divG:+$("#sim-d").value||0}; touchSettings(); persist(); render(); }; });
   v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
   const ps=v.querySelector("#pseg"); if(ps) ps.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ planMode=b.dataset.m; render(); } };
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;
