@@ -40,13 +40,33 @@ function portRows(){
     return {h,r,v,pl,plp,da,d,totp,type:typeOf(h),region:regionOf(h),account:accountOf(h),freq:h.freq||"주배당",weight:v/tot*100,yld:v>0&&da>0?da/v*100:null,est:r.val==null}; });
 }
 
-// ---------- 상단 TOTAL ASSET 카드 (divflow 참고) ----------
-function topCard(){
+// ---------- 상단 TOTAL ASSET 카드 ----------
+// full: 홈에서만 자산 그래프까지 보여줘요. 다른 탭에서는 한 줄로 줄여서 공간을 아껴요.
+let topRange = "6m";
+const ICO_PLUS='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>', ICO_CAL='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+function miniAsset(){
+  const R=[["1m","1달"],["6m","6달"],["1y","1년"],["all","전체"]], rp=RP();
+  const chips=`<div class="rchips" id="toprange">${R.map(([k,l])=>`<button data-r="${k}" aria-pressed="${topRange===k}">${l}</button>`).join("")}</div>`;
+  const pts=assetData(topRange).pts.map(p=>({ms:p.ms,t:p.val+p.div*(1-rp),c:Math.max(0,p.cost-p.div*rp)})).filter(p=>p.t>0||p.c>0);
+  if(pts.length<2||pts[pts.length-1].ms===pts[0].ms) return `<div class="spark none">매수 기록과 주가가 쌓이면 자산 그래프가 나와요</div>${chips}`;
+  const W=360,H=112,pt=8,pb=6, t0=pts[0].ms, t1=pts[pts.length-1].ms, vs=pts.flatMap(p=>[p.t,p.c]).filter(v=>v>0), hi0=Math.max(...vs), lo0=Math.min(...vs), pd=(hi0-lo0)*.12||hi0*.05, hi=hi0+pd, lo=Math.max(0,lo0-pd);
+  const X=ms=>2+(W-4)*(ms-t0)/(t1-t0), Y=v=>pt+(H-pt-pb)*(1-(v-lo)/((hi-lo)||1));
+  const line=pts.map(p=>`${X(p.ms).toFixed(1)},${Y(p.t).toFixed(1)}`).join(" "), last=pts[pts.length-1], up=last.t>=last.c, col=up?"var(--red)":"var(--blue)";
+  let cp="",pv=null; for(const p of pts){ if(!(p.c>0)) continue; cp+=pv==null?`M${X(p.ms).toFixed(1)},${Y(p.c).toFixed(1)}`:`H${X(p.ms).toFixed(1)}V${Y(p.c).toFixed(1)}`; pv=p; }
+  return `<div class="spark" data-goasset role="button" aria-label="자산 추이 그래프, 누르면 자세히"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"><defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="${X(t0).toFixed(1)},${H-pb} ${line} ${X(t1).toFixed(1)},${H-pb}" fill="url(#spg)"/>
+    ${cp?`<path d="${cp}" fill="none" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="3 3" opacity=".7" vector-effect="non-scaling-stroke"/>`:""}
+    <polyline points="${line}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>
+    <span class="sdot" style="background:${col}"></span></div>
+    <div class="slg"><span><i style="background:${col}"></i>총자산${S.cash.length?"":""}</span><span><i class="dash"></i>내가 넣은 돈</span></div>${chips}`;
+}
+function topCard(full){
   const P=portfolio(), {tCost,tVal,tDivP}=P, own=tCost-tDivP*RP(), gain=tVal-tCost+tDivP;
-  return `<section class="card topcard"><div class="tl">TOTAL ASSET</div>
-    <div class="tv num">${won(tVal)}</div>
-    <div class="td num">${tCost?`<b class="${cls(gain)}">${wonS(gain)}${own>0?` (${pct(gain/own*100,1)})`:""}</b> <span>배당 포함 · 투자원금 ${won(tCost)}</span>`:`<span>종목을 추가하면 자산이 계산돼요</span>`}</div>
-    <div class="tbtns"><button class="primary bigbtn" id="addHold">+ 종목 추가</button><button class="sq" id="goCal" aria-label="배당 달력"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button></div></section>`;
+  const td=tCost?`<b class="${cls(gain)}">${wonS(gain)}${own>0?` (${pct(gain/own*100,1)})`:""}</b> <span>배당 포함 · 투자원금 ${won(tCost)}</span>`:`<span>종목을 추가하면 자산이 계산돼요</span>`;
+  const btns=`<div class="tic">${tCost||!full?`<button class="ci" id="addHold" aria-label="종목 추가">${ICO_PLUS}</button>`:""}<button class="ci" id="goCal" aria-label="배당 달력">${ICO_CAL}</button></div>`;
+  if(!full) return `<section class="card topcard cp"><div class="tm"><div class="tl">TOTAL ASSET</div><div class="tv num">${won(tVal)}</div><div class="td num">${td}</div></div>${btns}</section>`;
+  return `<section class="card topcard"><div class="thead"><div class="tm"><div class="tl">TOTAL ASSET</div><div class="tv num">${won(tVal)}</div><div class="td num">${td}</div></div>${btns}</div>
+    ${tCost?miniAsset():`<div class="tbtns"><button class="primary bigbtn" id="addHold">+ 종목 추가</button></div>`}</section>`;
 }
 
 // ---------- 빈 화면: 설명 + 샘플 미리보기 (divflow 참고) ----------
@@ -56,6 +76,35 @@ function emptyCard(kicker,title,desc,btn,preview){
 const SAMPLE_BARS = `<div class="sbars">${[5,62,4,18,75,4,12,58,4,15,68,4].map((v,i)=>`<div><i style="height:${Math.max(6,v)}%" class="${[1,4,7,10].includes(i)?"hi":""}"></i><span>${i+1}</span></div>`).join("")}</div>`;
 const SAMPLE_DONUT = `<svg viewBox="0 0 120 120" width="120" height="120" style="display:block;margin:0 auto"><circle cx="60" cy="60" r="40" fill="none" stroke="#E1E6F7" stroke-width="22"/><circle cx="60" cy="60" r="40" fill="none" stroke="#4E69CF" stroke-width="22" stroke-dasharray="90 250" transform="rotate(-90 60 60)"/><circle cx="60" cy="60" r="40" fill="none" stroke="#8FA2E4" stroke-width="22" stroke-dasharray="60 250" stroke-dashoffset="-90" transform="rotate(-90 60 60)"/></svg>`;
 const SAMPLE_ROWS = `<div class="srows">${["K","U","E"].map(c=>`<div><b>${c}</b><span></span><i></i></div>`).join("")}</div>`;
+
+// ---------- 주간 배당 흐름 (주마다 등락 표시) ----------
+let wdRange = 12;
+function weekFlowData(n){
+  const wk=byWeek(), m0=monday(new Date()); let out=[];
+  for(let i=n-1;i>=0;i--){ const d=new Date(m0); d.setDate(d.getDate()-7*i); const k=isoOf(d); out.push({k,v:wk.get(k)||0,cur:i===0,g:weekGoal(k)}); }
+  const fi=out.findIndex(x=>x.v>0); if(fi>0) out=out.slice(Math.min(fi,out.length-4));
+  out.forEach((x,i)=>{ const p=i>0?out[i-1].v:0; x.d=p>0?(x.v-p)/p*100:null; });
+  return out;
+}
+const dtxt=d=>d==null?"":Math.abs(d)<.5?"0%":(d>0?"+":"")+(Math.abs(d)>=1000?(d>0?"999+":"-999"):Math.round(d))+"%";
+function weekFlow(){
+  const data=weekFlowData(wdRange), n=data.length, cur=data[n-1], prev=n>1?data[n-2]:null, vs=data.map(x=>x.v), pos=vs.filter(v=>v>0), avg=pos.length?pos.reduce((a,v)=>a+v,0)/pos.length:0;
+  const seg=`<div class="seg" id="wdseg" style="margin:12px 0 0">${[[12,"12주"],[26,"26주"],[52,"52주"]].map(([k,l])=>`<button data-n="${k}" aria-pressed="${wdRange===k}">${l}</button>`).join("")}</div>`;
+  if(!pos.length) return `<div class="spark none" style="margin-top:12px">배당을 기록하면 주마다 늘고 줄어드는 흐름이 그래프로 나와요</div>`;
+  const hasGoal=data.some(x=>x.g>0), W=400,H=180,pl=6,pr=6,pt=22,pb=22, bw=(W-pl-pr)/n, mx=Math.max(...vs,...data.map(x=>x.g||0),1)*1.12, y=v=>pt+(H-pt-pb)*(1-v/mx);
+  const showAll=n<=14, step=n<=14?2:n<=26?4:8;
+  const bars=data.map((x,i)=>{ const bx=pl+i*bw+bw*.19, w=bw*.62, h=Math.max(x.v>0?3:1.5,H-pb-y(x.v)), col=x.d==null?"var(--muted)":x.d>0.5?"var(--red)":x.d<-0.5?"var(--blue)":"var(--muted)", op=x.cur?.5:(x.v>0?.92:.35);
+    const lab=x.d!=null&&(showAll||i>=n-6)&&x.v>0?`<text x="${bx+w/2}" y="${y(x.v)-5}" font-size="${n>14?8.5:9.5}" text-anchor="middle" font-weight="700" fill="${col}">${dtxt(x.d)}</text>`:"";
+    const xl=(n-1-i)%step===0?`<text x="${bx+w/2}" y="${H-7}" font-size="10" text-anchor="middle" fill="${x.cur?"var(--ink)":"var(--muted)"}" font-weight="${x.cur?700:400}">${x.cur?"이번 주":fmtD(parseD(x.k))}</text>`:"";
+    return `<g data-week="${x.k}" role="button" style="cursor:pointer"><rect x="${pl+i*bw}" y="${pt-14}" width="${bw}" height="${H-pt-pb+14}" fill="transparent"/><rect x="${bx}" y="${H-pb-h}" width="${w}" height="${h}" rx="${Math.min(5,w/2)}" fill="${col}" opacity="${op}"${x.cur?` stroke="${col}" stroke-dasharray="3 2" fill-opacity=".35"`:""}><title>${fmtD(parseD(x.k))} 주 · ${won(x.v)}${x.d!=null?` · 전주 대비 ${dtxt(x.d)}`:""}</title></rect>${lab}${xl}</g>`; }).join("");
+  const goal=hasGoal?`<polyline points="${data.map((x,i)=>x.g>0?`${(pl+i*bw+bw/2).toFixed(1)},${y(x.g).toFixed(1)}`:"").filter(Boolean).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="4 3" opacity=".8"/>`:"";
+  const dp=prev&&prev.v>0&&cur?(cur.v-prev.v)/prev.v*100:null;
+  return `<div class="wfh"><div><div class="k">${cur&&cur.cur?"이번 주 (진행 중)":""}</div><div class="wfv num">${won(cur?cur.v:0)}</div></div>
+    <div class="dpill ${dp==null?"":dp>0.5?"up":dp<-0.5?"down":""}">${dp==null?"지난주 기록 없음":`지난주 ${won(prev.v)} 대비 ${dp>0.5?"▲":dp<-0.5?"▼":"–"} ${dtxt(dp)}`}</div></div>
+    <div class="chart wfc"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="주간 받은 배당 막대 그래프"><line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--rule)"/>
+      ${avg>0?`<line x1="${pl}" x2="${W-pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/><text x="${W-pr}" y="${y(avg)-4}" font-size="9.5" text-anchor="end" fill="var(--muted)">평균 ${kfmt(avg)}</text>`:""}${goal}${bars}</svg></div>
+    <div class="legend"><span><i style="background:var(--red)"></i>전주 대비 늘었어요</span><span><i style="background:var(--blue)"></i>줄었어요</span><span><i style="background:var(--muted)"></i>같음·비교 불가</span>${hasGoal?`<span><i style="background:var(--blue);height:2px;vertical-align:3px"></i>주간 목표</span>`:""}</div>${seg}`;
+}
 
 // ---------- 포트폴리오 ----------
 let holdSort = "weight", holdFilter = "all", holdQ = "", holdGroup = "none", holdCompact = false; const holdShut = new Set();
