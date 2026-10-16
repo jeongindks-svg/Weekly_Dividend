@@ -3,10 +3,10 @@ const LS_KEY = "weekly-div-journal-v1";
 const DEFAULT = {
   v:2,
   settings:{ fx:1380, fxDate:"", taxUS:15, taxKR:15.4, autoFx:true, goalMonthly:0, baseYield:0.85, goalBasis:"gross", reinvestPct:100, divAlertPct:10, planSeeded:false, tdKey:"", gClientId:"", gLinked:false, updated:0 },
-  holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
+  holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="5.0", APP_DATE="2026-10-16", APP_NOTES="리뉴얼: 포트폴리오·배당·분석(비중·재투자) 구조, 계좌·유형·지역 분류";
+const APP_VERSION="6.0", APP_DATE="2026-10-16", APP_NOTES="매도·실현손익, 매수 사유 메모, 입출금(실투자원금), 월 달력";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
@@ -38,7 +38,8 @@ const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const holdingOf = t => S.holdings.find(h=>h.ticker===t);
 const FREQS = ["주배당","월배당","분기배당","반기배당","연배당","배당 없음"];
 const freqN = t => { const f=(holdingOf(t)||{}).freq||"주배당"; return f==="월배당"?12:f==="분기배당"?4:f==="반기배당"?2:f==="연배당"?1:f==="배당 없음"?0:52; };
-const isDivStock = h => (h.freq||"주배당")!=="배당 없음";
+const isDivStock = h => !h.closed && (h.freq||"주배당")!=="배당 없음";
+const liveHoldings = () => S.holdings.filter(h=>!h.closed);
 // 지급 요일: 숫자 배열(0=일 … 6=토). 예전에 글자로 적은 값("금요일", "수,금")도 읽어요
 const DOWN = "일월화수목금토";
 function payDaysOf(h){ if(Array.isArray(h.payDays)) return h.payDays; const t=String(h.payday||"").replace(/요일/g,""), out=[]; for(let i=0;i<7;i++) if(t.includes(DOWN[i])) out.push(i); return out; }
@@ -76,7 +77,7 @@ try{ localStorage.removeItem("jb-theme"); }catch(e){}
 function normalize(p){
   const o = Object.assign(clone(DEFAULT), p||{});
   o.settings = Object.assign(clone(DEFAULT.settings), (p&&p.settings)||{});
-  for(const k of ["holdings","entries","plan","invest","deleted"]) if(!Array.isArray(o[k])) o[k]=[];
+  for(const k of ["holdings","entries","plan","invest","trades","cash","deleted"]) if(!Array.isArray(o[k])) o[k]=[];
   for(const k of ["fxCache","priceCache","quotes"]) if(!o[k]||typeof o[k]!=="object") o[k]={};
   o.entries.forEach(e=>{ if(e.fxAuto===undefined) e.fxAuto=false; });
   return o;
@@ -90,7 +91,7 @@ const IDB={ db:null, t:null,
   put(v){ clearTimeout(this.t); this.t=setTimeout(async()=>{ const db=this.db||await this.open(); if(!db) return; try{ db.transaction("kv","readwrite").objectStore("kv").put(v,"state"); }catch(e){} },400); },
   async get(){ const db=this.db||await this.open(); if(!db) return null; return new Promise(res=>{ try{ const q=db.transaction("kv").objectStore("kv").get("state"); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }catch(e){ res(null); } }); }
 };
-const hasData=o=>!!o&&["entries","holdings","plan","invest"].some(k=>Array.isArray(o[k])&&o[k].length);
+const hasData=o=>!!o&&["entries","holdings","plan","invest","trades","cash"].some(k=>Array.isArray(o[k])&&o[k].length);
 function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); if(r){ try{ S=normalize(JSON.parse(r)); }catch(e){ try{ localStorage.setItem("jb-corrupt",r); }catch(_){} } }
   const k=localStorage.getItem(TD_KEY); if(!S.settings.tdKey && k) S.settings.tdKey=k;
   else if(S.settings.tdKey && S.settings.tdKey!==k) saveLocal(); }catch(e){} }
@@ -166,7 +167,7 @@ async function backfillPrices(){
 let quoteBusy=false;
 async function refreshQuotes(force){
   if(quoteBusy || !S.settings.tdKey || !online()) return false;
-  const syms=[...new Set(S.holdings.filter(h=>h.currency!=="KRW").map(h=>h.ticker))];
+  const syms=[...new Set(liveHoldings().filter(h=>h.currency!=="KRW").map(h=>h.ticker))];
   if(!syms.length) return false;
   const stale = syms.some(t=>!S.quotes[t] || Date.now()-S.quotes[t].at > 15*60000);
   if(!force && !stale) return false;
@@ -196,7 +197,8 @@ function mergeIn(raw){
   const p=normalize(raw);
   const dead=new Set([...S.deleted,...p.deleted]);
   const e=mergeList(S.entries,p.entries,dead), h=mergeList(S.holdings,p.holdings,dead);
-  const pl=mergeList(S.plan,p.plan,dead), iv=mergeList(S.invest,p.invest,dead); S.entries=e.list; S.holdings=h.list; S.plan=pl.list; S.invest=iv.list; S.deleted=[...dead];
+  const pl=mergeList(S.plan,p.plan,dead), iv=mergeList(S.invest,p.invest,dead); S.entries=e.list; S.holdings=h.list; S.plan=pl.list; S.invest=iv.list;
+  const tr=mergeList(S.trades,p.trades,dead), ca=mergeList(S.cash,p.cash,dead); S.trades=tr.list; S.cash=ca.list; S.deleted=[...dead];
   if((p.settings.updated||0) > (S.settings.updated||0)){ const keep={gLinked:S.settings.gLinked,tdKey:S.settings.tdKey}; S.settings=Object.assign(p.settings,keep); }
   S.fxCache=Object.assign({},p.fxCache,S.fxCache);
   for(const t in p.priceCache) S.priceCache[t]=Object.assign({},p.priceCache[t],S.priceCache[t]||{});
@@ -209,5 +211,5 @@ function canon(v){ if(Array.isArray(v)) return v.map(canon); if(v&&typeof v==="o
 function digest(o){
   const by=a=>[...(a||[])].sort((x,y)=>String(x.id)<String(y.id)?-1:1), st=Object.assign({},o.settings);
   delete st.gLinked; delete st.fx; delete st.fxDate; delete st.tdKey;
-  return JSON.stringify(canon([by(o.entries),by(o.holdings),by(o.plan),by(o.invest),[...(o.deleted||[])].sort(),st]));
+  return JSON.stringify(canon([by(o.entries),by(o.holdings),by(o.plan),by(o.invest),by(o.trades),by(o.cash),[...(o.deleted||[])].sort(),st]));
 }

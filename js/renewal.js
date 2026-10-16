@@ -12,7 +12,7 @@ function typeOf(h){ if(h.assetType) return h.assetType; const t=String(h.ticker|
   return ETF_US.has(t.toUpperCase())||/ETF/i.test(t)?"해외ETF":"해외주식"; }
 const regionOf = h => h.region || (h.currency==="KRW"?"국내":"미국");
 const accountOf = h => h.account || "일반";
-const accountsAll = () => [...new Set([...ACC0,...S.holdings.map(accountOf)])];
+const accountsAll = () => [...new Set([...ACC0,...liveHoldings().map(accountOf)])];
 
 // 종목 하나의 예상 연 배당(세후, 원): 최근 지급 평균 × 주기 횟수
 function perPayOf(h){
@@ -65,7 +65,9 @@ function bars(entries,total){
 function tally(rows,fn){ const m={}; for(const r of rows){ const k=fn(r); m[k]=(m[k]||0)+r.v; } return Object.entries(m).sort((a,b)=>b[1]-a[1]); }
 function viewHold(){
   const banner=holdBanner();
-  if(!S.holdings.length) return banner+topCard()+emptyCard("GET STARTED","배당 포트폴리오를<br>시작해보세요","첫 종목을 추가하면 평가손익·배당·재투자 분석이 자동으로 시작돼요.",`<button class="primary bigbtn" id="addHold2">+ 첫 종목 추가</button>`,SAMPLE_ROWS+`<ol class="steps"><li>종목명 또는 종목코드로 추가</li><li>수량·평단·계좌(일반/ISA/연금) 입력</li><li>매주 주당 배당만 기록하면 분석 시작</li></ol>`);
+  if(holdMode==="trade") return banner+topCard()+holdSeg("trade")+viewTrades();
+  if(holdMode==="cash") return banner+topCard()+holdSeg("cash")+viewCash();
+  if(!liveHoldings().length) return banner+topCard()+holdSeg("list")+emptyCard("GET STARTED","배당 포트폴리오를<br>시작해보세요","첫 종목을 추가하면 평가손익·배당·재투자 분석이 자동으로 시작돼요.",`<button class="primary bigbtn" id="addHold2">+ 첫 종목 추가</button>`,SAMPLE_ROWS+`<ol class="steps"><li>종목명 또는 종목코드로 추가</li><li>수량·평단·계좌(일반/ISA/연금) 입력</li><li>매주 주당 배당만 기록하면 분석 시작</li></ol>`);
   let rows=portRows(); const tot=rows.reduce((a,r)=>a+r.v,0)||1, P=portfolio();
   const accs=[...new Set(rows.map(r=>r.account))]; if(holdFilter!=="all"&&!accs.includes(holdFilter)) holdFilter="all";
   const view=rows.filter(r=>holdFilter==="all"||r.account===holdFilter);
@@ -95,8 +97,9 @@ function viewHold(){
   if(P.missing) notes.push(`가격이 없는 종목 ${P.missing}개는 합계에서 빠졌어요(목록에는 매입금액으로 표시).`);
   if(!S.settings.tdKey) notes.push("설정에서 주가 API 키를 넣으면 현재가가 자동으로 들어와요.");
   const q=Object.values(S.quotes).map(x=>x.at).sort().pop();
-  return `${banner}${topCard()}
-    <section class="stats3"><div><div class="k">내가 넣은 돈</div><div class="v num">${P.tCost?won(Math.max(0,P.tCost-P.tDivP*RP())):"-"}</div></div>
+  const real=S.cash.length>0, put=real?cashNet("all"):Math.max(0,P.tCost-P.tDivP*RP());
+  return `${banner}${topCard()}${holdSeg("list")}
+    <section class="stats3"><div><div class="k">${real?"실투자원금":"내가 넣은 돈"}</div><div class="v num">${real||P.tCost?won(put):"-"}</div></div>
       <div><div class="k">받은 배당</div><div class="v num up">${won(P.tDivP)}</div></div>
       <div><div class="k">예상 연 배당</div><div class="v num">${divTot?won(divTot):"-"}</div>${yAll!=null?`<div class="muted" style="font-size:11.5px">배당률 ${yAll.toFixed(1)}%</div>`:""}</div></section>
     ${comp}
@@ -164,12 +167,12 @@ function mixView(){
   const dims=[["ticker","종목"],["type","유형"],["region","지역"],["account","계좌"],["freq","주기"]], fn={ticker:r=>r.h.ticker,type:r=>r.type,region:r=>r.region,account:r=>r.account,freq:r=>r.freq}[mixDim];
   const seg=`<div class="seg" id="mixseg" style="margin-bottom:12px">${dims.map(([k,l])=>`<button data-m="${k}" aria-pressed="${mixDim===k}">${l}</button>`).join("")}</div>`;
   const items=tally(rows,fn), warn=warnings(rows);
-  const accs=tally(rows,r=>r.account).map(([a])=>{ const rs=rows.filter(r=>r.account===a), v=rs.reduce((x,r)=>x+r.v,0), c=rs.reduce((x,r)=>x+r.r.cost,0); return {a,v,c}; }), mx=Math.max(...accs.map(x=>Math.max(x.v,x.c)),1);
+  const accs=tally(rows,r=>r.account).map(([a])=>{ const rs=rows.filter(r=>r.account===a), v=rs.reduce((x,r)=>x+r.v,0), c0=rs.reduce((x,r)=>x+r.r.cost,0), cn=S.cash.some(k=>(k.account||"일반")===a)?cashNet(a):0, c=cn>0?cn:c0; return {a,v,c}; }), mx=Math.max(...accs.map(x=>Math.max(x.v,x.c)),1);
   return `${warn.length?`<section class="card warn"><h2>집중 위험 점검</h2>${warn.map(w=>`<div class="wl">⚠ ${w}</div>`).join("")}</section>`:""}
     <section class="card"><h2>종목 비중 <small>트리맵 · 평가금액</small></h2>${treemap(items.length&&mixDim==="ticker"?items:tally(rows,r=>r.h.ticker))}</section>
     <section class="card"><h2>구성 분석 <small>Top 5 + 기타</small></h2>${seg}${donut(top5(items))}</section>
     <section class="card"><h2>계좌별 <small>원금과 평가금액</small></h2>${accs.map(x=>{ const gain=x.v-x.c; return `<div class="acc"><div class="ah"><b>${esc(x.a)}</b><span class="num">${won(x.v)} <small class="${cls(gain)}">${x.c?pct(gain/x.c*100,1):""}</small></span></div>
-      <div class="ab"><i class="c" style="width:${Math.min(100,Math.min(x.c,x.v)/mx*100)}%"></i><i class="g ${gain<0?"l":""}" style="width:${Math.min(100,Math.abs(gain)/mx*100)}%"></i></div></div>`; }).join("")}<div class="legend"><span><i style="background:#6b7384"></i>투자 원금</span><span><i style="background:var(--red)"></i>수익</span><span><i style="background:var(--blue)"></i>손실</span></div></section>`;
+      <div class="ab"><i class="c" style="width:${Math.min(100,Math.min(x.c,x.v)/mx*100)}%"></i><i class="g ${gain<0?"l":""}" style="width:${Math.min(100,Math.abs(gain)/mx*100)}%"></i></div></div>`; }).join("")}<div class="legend"><span><i style="background:#6b7384"></i>투자 원금(입출금 기록이 있으면 실투자원금)</span><span><i style="background:var(--red)"></i>수익</span><span><i style="background:var(--blue)"></i>손실</span></div></section>`;
 }
 
 // ---------- 분석: 배당 재투자 시뮬레이터 (divflow ‘시간이 만드는 눈덩이 효과’) ----------

@@ -15,7 +15,8 @@ function daySheet(D){
     ${x.got.length?`<div class="av2s num amt" style="font-size:26px;font-weight:700;margin:4px 0 8px">${won(x.recv)}</div><p class="hint">받은 배당 · ${x.got.length}건</p>
     ${x.got.map(e=>`<div class="lrow"><div><div class="t">${esc(e.ticker)}</div><div class="s">${e.currency==="KRW"?won(e.perShare):"$"+fmtPs(e.perShare)} × ${qty(e.shares)}주</div></div><div class="r"><div class="p amt">${won(amtOf(e,b))}</div></div></div>`).join("")}`:`<p class="hint">이 날 기록된 배당이 없어요.</p>`}
     ${x.exp.length?`<h3 style="margin:14px 0 2px;font-size:15px">입금 예정 <span class="muted" style="font-weight:400">지난 금액 기준 예상</span></h3>${x.exp.map(o=>`<div class="lrow"><div><div class="t">${esc(o.h.ticker)}</div><div class="s">${qty(o.h.shares)}주${o.amt?"":" · 지난 기록 없음"}</div></div><div class="r"><div class="p muted">${o.amt?"~"+won(o.amt):"-"}</div></div></div>`).join("")}`:""}
-    <div class="btnrow" style="margin-top:14px"><button class="ghost" id="dsx">닫기</button><button class="primary" id="dsgo">이 날 배당 기록하기</button></div>`,()=>{ $("#dsx").onclick=closeSheet; $("#dsgo").onclick=()=>batchSheet(D); });
+    ${dayExtra(D)}
+    <div class="btnrow" style="margin-top:14px"><button class="ghost" id="dsx">${calFrom?"‹ 달력":"닫기"}</button><button class="primary" id="dsgo">이 날 배당 기록하기</button></div>`,()=>{ $("#dsx").onclick=calFrom?()=>monthCalSheet(calFrom):closeSheet; $("#dsgo").onclick=()=>batchSheet(D); });
 }
 function weekSheet(k){
   const b=basis(), es=S.entries.filter(e=>weekKey(e.date)===k).sort((a,c)=>a.date.localeCompare(c.date)||a.ticker.localeCompare(c.ticker)), i=weekInfo(es,b);
@@ -26,7 +27,7 @@ function weekSheet(k){
     <div class="btnrow" style="margin-top:12px"><button id="wsClose">닫기</button></div>`,()=>{ $("#wsClose").onclick=closeSheet; });
 }
 function openSheet(html, bind){ const o=$("#sheet"), n=o.cloneNode(false); o.replaceWith(n); n.innerHTML=html; $("#sheetBg").classList.add("open"); bind&&bind(); }
-function closeSheet(){ $("#sheetBg").classList.remove("open"); softRender(); }
+function closeSheet(){ calFrom=null; $("#sheetBg").classList.remove("open"); softRender(); }
 $("#sheetBg").addEventListener("click", e=>{ if(e.target.id==="sheetBg") closeSheet(); });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeSheet(); });
 
@@ -102,7 +103,7 @@ function batchSheet(dateStr){
 }
 
 function entrySheet(id){
-  const e=id?S.entries.find(x=>x.id===id):null, h0=S.holdings[0];
+  const e=id?S.entries.find(x=>x.id===id):null, h0=liveHoldings()[0];
   let cur=e?e.currency:(h0?h0.currency:"USD");
   const tickers=[...new Set([...S.holdings.map(h=>h.ticker),...S.entries.map(x=>x.ticker)])];
   openSheet(`<h3>${e?"기록 수정":"배당 기록"}</h3>
@@ -170,6 +171,7 @@ function holdSheet(id){
         <div><label class="f" for="lts">수량</label><input id="lts" type="number" inputmode="decimal" step="any"></div>
         <div><label class="f" for="ltp">총 매수금액 <span class="hcur"></span></label><input id="ltp" type="number" inputmode="decimal" step="any" placeholder="수량 전체 가격"></div></div>
       <div id="ltfw"><label class="f" for="ltf">매수 환율 (원/$, 선택)</label><input id="ltf" type="number" inputmode="decimal" step="any" placeholder="모르면 비워 두기"></div>
+      <label class="f" for="ltm">매수 사유 메모 (선택)</label><input id="ltm" maxlength="80" placeholder="예: 배당 재투자, 하락 시 분할 매수">
       <div class="btnrow" style="margin-top:8px"><button type="button" class="small" id="ladd">+ 매수 추가</button></div>
       <div class="calc num" id="hlsum" style="margin-top:8px"></div>
       <div id="hovbox" hidden><label class="f" for="hov">증권사 앱 평단에 맞추기 (선택) <span class="hcur"></span></label><input id="hov" type="number" inputmode="decimal" step="any" placeholder="증권사 앱에 보이는 1주 평단">
@@ -182,24 +184,24 @@ function holdSheet(id){
       <div><label class="f" for="hty">자산 유형</label><select id="hty"><option value="">자동</option>${TYPES.map(t=>`<option ${h&&h.assetType===t?"selected":""}>${t}</option>`).join("")}</select></div></div>
     <label class="f" for="hrg">지역</label><select id="hrg"><option value="">자동 (미국 $ · 국내 ₩)</option>${REGIONS.map(t=>`<option ${h&&h.region===t?"selected":""}>${t}</option>`).join("")}</select>
     <div id="hpdbox"><label class="f">지급 요일 <span class="muted">(여러 개 선택 · 이번 주 일정에 표시돼요)</span></label><div class="dowrow" id="hpd">${[...DOWN].map((c,i)=>`<button type="button" data-d="${i}" aria-pressed="${selDays.includes(i)}">${c}</button>`).join("")}</div></div>
-    <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
+    <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button><button id="hsell">매도</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
-        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
-        const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중 (기록상 평단 ${us?"$"+fmtPs(+ds.raw.toFixed(4)):won(ds.raw)})`:""}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
+        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>l.sell?`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date} <span class="tag sell">매도</span></div><div class="s num">${qty(-l.shares)}주 매도 · 매매일지에서 관리해요</div></div></div>`:`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}${l.memo?` <span class="muted" style="font-weight:400;font-size:12px">· ${esc(l.memo)}</span>`:""}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
+        const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.filter(l=>!l.sell).length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중 (기록상 평단 ${us?"$"+fmtPs(+ds.raw.toFixed(4)):won(ds.raw)})`:""}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
         $("#hovbox").hidden=!lots.length; if(document.activeElement!==$("#hov")) $("#hov").value=scale!==1?r4(ds.avg,4):"";
         const d=derive(), on=lots.length>0; mine.forEach(i=>$(i).readOnly=on);
         if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); if(document.activeElement!==$("#hak")) $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
       $("#hak").addEventListener("input",()=>{ if(!lots.length||cur==="KRW") return; const K=+$("#hak").value, avg=derive().avg; fxAvg=K>0&&avg>0?K/avg:0; });
       $("#hov").addEventListener("input",()=>{ const v=+$("#hov").value, raw=derive().raw; scale=v>0&&raw>0?v/raw:1;
-        const ds=derive(); $("#hlsum").innerHTML=`매수 ${lots.length}회 · 합계 ${qty(ds.sh)}주 · 1주 평단 ${cur!=="KRW"?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중`:""}`; if(cur!=="KRW"){ $("#hau").value=r4(ds.avg,4); $("#hak").value=ds.avgK?r4(ds.avgK,2):""; } else $("#haw").value=r4(ds.avg,2); });
+        const ds=derive(); $("#hlsum").innerHTML=`매수 ${lots.filter(l=>!l.sell).length}회 · 합계 ${qty(ds.sh)}주 · 1주 평단 ${cur!=="KRW"?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중`:""}`; if(cur!=="KRW"){ $("#hau").value=r4(ds.avg,4); $("#hak").value=ds.avgK?r4(ds.avgK,2):""; } else $("#haw").value=r4(ds.avg,2); });
       $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"), e=ev.target.closest("[data-le]");
         if(b){ lots=lots.filter(l=>l.id!==b.dataset.ld); drawLots(); upd(); }
         else if(e){ const l=lots.find(x=>x.id===e.dataset.le); if(!l) return; lots=lots.filter(x=>x!==l);
-          $("#ltd").value=l.date; $("#lts").value=l.shares; $("#ltp").value=lotBase(l); $("#ltf").value=+l.fx||""; drawLots(); upd(); toast("위 칸에서 고친 뒤 ‘+ 매수 추가’를 눌러 주세요"); } };
+          $("#ltd").value=l.date; $("#lts").value=l.shares; $("#ltp").value=lotBase(l); $("#ltf").value=+l.fx||""; $("#ltm").value=l.memo||""; drawLots(); upd(); toast("위 칸에서 고친 뒤 ‘+ 매수 추가’를 눌러 주세요"); } };
       $("#ladd").onclick=()=>{ const d=$("#ltd").value, s=+$("#lts").value, t=+$("#ltp").value, f=+$("#ltf").value||0;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!(s>0)||!(t>0)){ toast("매수일·수량·총 매수금액을 입력해 주세요"); return; }
-        lots.push({id:uid(),date:d,shares:s,total:t,price:t/s,fx:cur!=="KRW"?f:0}); $("#lts").value=""; $("#ltp").value=""; $("#ltf").value=""; drawLots(); upd(); };
+        lots.push({id:uid(),date:d,shares:s,total:t,price:t/s,fx:cur!=="KRW"?f:0,memo:$("#ltm").value.trim()}); $("#lts").value=""; $("#ltp").value=""; $("#ltf").value=""; $("#ltm").value=""; drawLots(); upd(); };
       const upd=()=>{ const us=cur!=="KRW", fx=S.settings.fx; $("#husd").hidden=!us; $("#hkrw").hidden=us;
         document.querySelectorAll(".hcur").forEach(x=>x.textContent=`(${us?"$":"원"})`);
         const aU=+$("#hau").value||0, aK=+$("#hak").value||0, sh=+$("#hs").value||0, t=$("#ht").value.trim().toUpperCase(), pv=$("#hpv");
@@ -216,6 +218,7 @@ function holdSheet(id){
       $("#hpd").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; const d=+b.dataset.d; selDays=selDays.includes(d)?selDays.filter(x=>x!==d):[...selDays,d]; b.setAttribute("aria-pressed",selDays.includes(d)); };
       const frq=()=>{ $("#hpdbox").hidden=$("#hf").value==="배당 없음"; }; $("#hf").onchange=frq; frq();
       $("#hcx").onclick=closeSheet;
+      if(h) $("#hsell").onclick=()=>sellSheet(h.id);
       if(h) $("#hdel").onclick=()=>{ if(!confirm("종목을 삭제할까요? 지난 배당 기록은 남아 있어요.")) return; S.holdings=S.holdings.filter(x=>x.id!==h.id); markDeleted(h.id); persist(); closeSheet(); };
       $("#hsv").onclick=()=>{
         // 칸에 적어 놓고 ‘+ 매수 추가’를 안 눌렀다면 대신 넣어요
