@@ -89,15 +89,15 @@ function holdCalc(h){
 }
 function portfolio(){
   const dv=divByTicker(); let tCost=0,tVal=0,tDiv=0,tDivP=0,tFx=0,fxN=0,noFx=0,missing=0,uCost=0,uVal=0,kCost=0,kVal=0; const rows=[];
-  for(const h of S.holdings){ const c=holdCalc(h), d=dv[h.ticker]||0;
+  for(const h of liveHoldings()){ const c=holdCalc(h), d=dv[h.ticker]||0;
     if(c.val==null) missing++; else { tVal+=c.val; tCost+=c.cost; tDivP+=d; if(c.fxPL!=null){ tFx+=c.fxPL; fxN++; uCost+=c.aU*h.shares; uVal+=c.p*h.shares; kCost+=c.cost; kVal+=c.val; } else if(h.currency!=="KRW"&&c.cost) noFx++; }
     tDiv+=d; rows.push(Object.assign({h,d},c)); }
   return {tCost,tVal,tDiv,tDivP,tFx,fxN,noFx,missing,rows,uCost,uVal,kCost,kVal};
 }
-const oddKrw=()=>S.holdings.filter(h=>h.currency==="KRW"&&!h.krwOk&&/^[A-Z][A-Z0-9.\-]{0,6}$/.test(h.ticker));
+const oddKrw=()=>liveHoldings().filter(h=>h.currency==="KRW"&&!h.krwOk&&/^[A-Z][A-Z0-9.\-]{0,6}$/.test(h.ticker));
 // 월별 투자금(만원): 직접 적은 값이 있으면 그 값, 없으면 매수 기록의 매수금액(원화 환산) 합계
 function investManual(){ const m={}; for(const v of S.invest) if(+v.amount>0) m[v.ym]=(m[v.ym]||0)+(+v.amount); return m; }
-function investAuto(){ const m={}; for(const h of S.holdings) for(const l of (h.lots||[])){ const ym=l.date.slice(0,7); m[ym]=(m[ym]||0)+lotCostKRW(h,l)/10000; } for(const k in m) m[k]=Math.round(m[k]*10)/10; return m; }
+function investAuto(){ const m={}; for(const h of S.holdings) for(const l of (h.lots||[])){ if(l.sell) continue; const ym=l.date.slice(0,7); m[ym]=(m[ym]||0)+lotCostKRW(h,l)/10000; } for(const k in m) m[k]=Math.round(m[k]*10)/10; return m; }
 function investMap(){ const a=investAuto(), u=investManual(), m=Object.assign({},a); for(const k in u) m[k]=u[k]; return m; }
 function monthRows(y){ const a=Array.from({length:12},()=>({net:0,gross:0,n:0}));
   for(const e of S.entries){ if(!e.date.startsWith(y+"-")) continue; const m=+e.date.slice(5,7)-1, c=calc(e); a[m].net+=c.netKRW; a[m].gross+=c.grossKRW; a[m].n++; }

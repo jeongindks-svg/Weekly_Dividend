@@ -435,3 +435,23 @@ nav.tabs .brand img{border-radius:9px}
 .cards4 .k{font-size:11.5px;color:var(--muted)}.cards4 .v{font-size:15px;font-weight:800;margin:3px 0}.cards4 .s{font-size:10.5px;color:var(--muted)}
 .cards4>div.on{background:var(--accent);color:#fff}.cards4>div.on .k,.cards4>div.on .s{color:rgba(255,255,255,.85)}
 @media (min-width:900px){ .stats3,.cards4{max-width:760px} .topcard .tv{font-size:42px} }
+
+/* v6: 매매일지 · 입출금 · 월 달력 */
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;vertical-align:1px;letter-spacing:0}
+.tag.buy{color:var(--red);background:color-mix(in srgb,var(--red) 13%,transparent)}
+.tag.sell{color:var(--blue);background:color-mix(in srgb,var(--blue) 13%,transparent)}
+.memo{font-size:12.5px;color:var(--muted);margin-top:3px;word-break:keep-all}
+.calnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.calnav button{width:40px;height:36px;font-size:20px;padding:0}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cdw{text-align:center;font-size:12px;color:var(--muted);padding:4px 0}.cdw.su{color:var(--red)}
+.cday{min-height:58px;border-radius:12px;padding:5px 2px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--bg);box-shadow:none;border:0;color:var(--ink)}
+.cday.off{background:transparent;pointer-events:none}
+.cday b{font-size:13.5px;font-weight:600}
+.cday.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cday.got{background:color-mix(in srgb,var(--red) 11%,var(--bg))}
+.cday .ca{font-size:10.5px;color:var(--muted);min-height:13px;white-space:nowrap}.cday .ca.r{color:var(--red);font-weight:700}
+.cday .cm{display:flex;gap:3px;min-height:6px}
+.cday .cm i,.ld{display:inline-block;width:6px;height:6px;border-radius:50%}
+.cday .cm i.buy,.ld.buy{background:var(--red)}.cday .cm i.sell,.ld.sell{background:var(--blue)}.cday .cm i.cash,.ld.cash{background:#8b93a3}
+.ld{margin-right:4px}
