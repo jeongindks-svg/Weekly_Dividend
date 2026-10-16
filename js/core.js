@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="7.0", APP_DATE="2026-10-16", APP_NOTES="Supabase 구글 로그인 자동 동기화 (한 번 로그인하면 계속 유지)";
+const APP_VERSION="7.1", APP_DATE="2026-10-16", APP_NOTES="Supabase 연결 정보 내장: 구글 로그인만 하면 바로 동기화";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
