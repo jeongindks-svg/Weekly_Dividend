@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="7.1", APP_DATE="2026-10-16", APP_NOTES="Supabase 연결 정보 내장: 구글 로그인만 하면 바로 동기화";
+const APP_VERSION="7.2", APP_DATE="2026-10-16", APP_NOTES="색감 정리, 종목 많을 때 검색·묶어 보기, 배당 이중 반영 수정, 재투자 성과";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
