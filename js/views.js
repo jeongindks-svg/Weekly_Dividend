@@ -85,6 +85,7 @@ function viewHome(){
   for(let k=firstK; k<=isoOf(m0); k=addDays(k,7)){ labels.push(fmtD(parseD(k))); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
   const hasGoal=tg.some(t=>t>0);
   return `
+  ${topCard()}
   <section class="card hero">
     <div class="label">${y}년 받은 배당 (세후)</div>
     <div class="big num">${won(ytd)}</div>
@@ -137,36 +138,11 @@ function viewLog(){
   return html+add;
 }
 
-function viewHold(){
-  if(!S.holdings.length) return `<section class="card"><div class="empty">보유 종목을 등록하면 현재 주가로 평가손익과 총수익률을 볼 수 있어요.</div></section><div class="btnrow"><button class="primary" id="addHold">종목 추가</button></div>`;
-  const P=portfolio(), fx=S.settings.fx;
-  const {tCost,tVal,tDivP,missing}=P, pl=tVal-tCost, gain=pl+tDivP, own=tCost-tDivP*RP(), q=Object.values(S.quotes).map(x=>x.at).sort().pop();
-  const rows=P.rows.map(r=>{ const {h,p,cost,val,d}=r, kr=h.currency==="KRW";
-    const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null, own1=cost-d*RP(), totp = pl1!=null&&own1>0? (pl1+d)/own1*100 : null;
-    const avgTxt = kr ? (r.aK?won(r.aK):"평단 미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "평단 미입력";
-    return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
-      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}${(h.freq||"주배당")==="주배당"?"":` · ${h.freq==="배당 없음"?"일반 주식":esc(h.freq)}`}</div></div>
-      <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}${totp!=null&&d>0?`<div class="s num ${cls(totp)}" style="font-weight:500;font-size:12px">배당 포함 ${pct(totp,1)}</div>`:""}</div></div>`;
-  }).join("");
+function holdBanner(){
   const odd=oddKrw();
   const banner = odd.length ? `<section class="card notice"><b>${odd.map(h=>esc(h.ticker)).join(", ")}</b> 종목이 국내(원) 종목으로 저장돼 있어서 현재가가 들어오지 않고 평가금액이 비어 있어요. 미국 주식을 원화로 산 거라면 ‘미국 종목이에요’를 눌러 주세요. 입력했던 평단은 원화 평단으로 옮겨져요.
     <div class="btnrow" style="margin-top:10px"><button class="primary" id="fixKrw">미국 종목이에요</button><button class="ghost" id="keepKrw">국내 종목 맞아요</button></div></section>` : "";
-  const notes=[`달러 종목은 오늘 환율(${fx.toLocaleString()}원)로 평가해요.`];
-  if(missing) notes.push(`가격이 없는 종목 ${missing}개는 합계에서 빠졌어요.`);
-  if(!S.settings.tdKey) notes.push("설정에서 주가 API 키를 넣으면 현재가가 자동으로 들어와요.");
-  if(tCost) notes.push(`배당 ${Math.round(RP()*100)}% 재투자 가정: 내가 넣은 돈 = 원금 ${won(tCost)} − 재투자한 배당 ${won(tDivP*RP())}. 비율은 설정에서 바꿔요.`);
-  return `${banner}
-  <section class="card hero2">
-    <div class="k">평가금액${q?` · ${new Date(q).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}`:""}</div>
-    <div class="big num">${won(tVal)}</div>
-    <div class="num ${cls(gain)}" style="font-weight:600;margin:-8px 0 14px">${tCost?`${wonS(gain)}${own>0?` (${pct(gain/own*100,1)})`:""}`:"-"} <span class="muted" style="font-weight:400">배당 포함 총수익</span></div>
-    <div class="mini"><div><div class="k">내가 넣은 돈</div><div class="v num">${tCost?won(Math.max(0,own)):"-"}</div></div>
-    <div><div class="k">받은 배당</div><div class="v num up">${won(tDivP)}</div></div>
-    <div><div class="k">평가손익</div><div class="v num ${cls(pl)}">${tCost?wonS(pl):"-"}</div></div></div>
-    <details class="help" style="margin-top:12px"><summary>계산 기준</summary><p class="muted" style="margin:6px 0 0">${notes.join(" ")}</p></details>
-  </section>
-  <section class="card" style="padding:4px 16px">${rows}</section>
-  <div class="btnrow"><button id="refQ" class="ghost" ${S.settings.tdKey?"":"disabled"}>주가 새로고침</button><button class="primary" id="addHold">종목 추가</button></div>`;
+  return banner;
 }
 
 function tickerDetail(t){
@@ -190,10 +166,11 @@ function tickerDetail(t){
   <section class="card full" style="padding:0"><div class="tbl"><table><thead><tr><th class="l">주차</th><th class="l">입금일</th><th>주당</th><th>수량</th><th>세후(원)</th><th>배당률</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
-function viewChart(){
+function viewChart(modeOverride,noSeg){
+  const mode=modeOverride||chartMode;
   const now=new Date(), y=now.getFullYear(), b=basis();
-  const seg=`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["month","월별"],["week","주별"],["cum","누적"],["ticker","종목"],["rate","배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${chartMode===k}">${l}</button>`).join("")}</div>`;
-  if(chartMode==="ticker"){
+  const seg=noSeg?"":topCard()+`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["mix","비중"],["sim","재투자"],["rate","배당률"],["ticker","종목"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${mode===k}">${l}</button>`).join("")}</div>`;
+  if(mode==="ticker"){
     const ts=[...new Set(S.entries.map(e=>e.ticker))].sort();
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
     const chips=`<div class="chips" id="tchips">${["all",...ts].map(t=>`<button data-t="${esc(t)}" aria-pressed="${tickerSel===t}">${t==="all"?"전체":esc(t)}</button>`).join("")}</div>`;
@@ -206,8 +183,10 @@ function viewChart(){
         <p class="muted" style="margin:0 2px 12px">위에서 종목을 고르면 그 종목만 날짜별로 볼 수 있어요.</p>`; }
     return seg+chips+tickerDetail(tickerSel);
   }
-  if(chartMode==="asset") return seg+assetView();
-  if(chartMode==="rate") return seg+rateView();
+  if(mode==="asset") return seg+assetView();
+  if(mode==="mix") return seg+mixView();
+  if(mode==="sim") return seg+simView();
+  if(mode==="rate") return seg+rateView();
   const months=new Array(12).fill(0).map((_,i)=>actualYm(ymOf(y,i),b)), goals=months.map((_,i)=>goalFor(y,i)), hasGoal=goals.some(g=>g>0);
   const firstThisYear=S.entries.map(e=>e.date).filter(d=>d.startsWith(y+"-")).sort()[0];
   const startM=firstThisYear?parseD(firstThisYear).getMonth():0, cm=now.getMonth();
@@ -222,10 +201,10 @@ function viewChart(){
     </div></section>`
     : `<section class="card"><div class="muted">계획 탭에서 <b>월별 목표</b>를 정하면 받은 금액과 목표를 그래프로 비교할 수 있어요.</div><div class="btnrow" style="margin-top:10px"><button id="goPlan">계획 탭으로</button></div></section>`;
   let body="";
-  if(chartMode==="month"){
+  if(mode==="month"){
     body=`<section class="card"><h2>${y}년 월별 배당 </h2>${barChart({labels:months.map((_,i)=>(i+1)+"월"),values:months,target:hasGoal?goals:0})}
       <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>그달 목표</span><span>흐린 막대: 목표 미달</span>`:""}</div></section>`;
-  } else if(chartMode==="week"){
+  } else if(mode==="week"){
     const wk=new Map(); for(const e of S.entries){ const k=weekKey(e.date); wk.set(k,(wk.get(k)||0)+amtOf(e,b)); }
     const m0=monday(now), labels=[], vals=[], tg=[];
     for(let i=15;i>=0;i--){ const m=new Date(m0); m.setDate(m.getDate()-7*i); const k=isoOf(m); labels.push(weekLabel(k).replace("주차","주")); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
@@ -413,12 +392,14 @@ function viewSet(){
   <p class="muted" style="text-align:center;font-size:12px;margin:4px 0 16px">v${APP_VERSION} · ${APP_DATE}${justUpdated?` · <span class="up">방금 업데이트 (v${esc(prevVer)} → v${APP_VERSION})</span>`:""}<br>${APP_NOTES}</p>`;
 }
 
+const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"chart",set:"set"};
 function render(){
   const v=$("#view");
   v.className = "tab-"+tab+(tab==="log"?(logMode==="table"?" one":" one list"):"");
-  v.innerHTML = tab==="home"?viewHome():tab==="log"?viewLog():tab==="hold"?viewHold():tab==="chart"?viewChart():tab==="plan"?viewPlan():viewSet();
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===tab));
-  $("#fab").hidden = !(tab==="home"||tab==="log");
-  const tb=document.querySelector('nav.tabs button[data-tab="'+tab+'"]'), pg=document.querySelector("header.top .pg"); if(tb&&pg) pg.textContent=tb.textContent;
+  v.innerHTML = tab==="home"?viewHome():tab==="log"?topCard()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?topCard()+divSeg("plan")+viewPlan():viewSet();
+  const nv=NAVOF[tab]||tab;
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
+  $("#fab").hidden = !(tab==="home"||tab==="div"||tab==="log");
+  const tb=document.querySelector('nav.tabs button[data-tab="'+nv+'"]'), pg=document.querySelector("header.top .pg"); if(tb&&pg) pg.textContent=tb.textContent;
   bindView(); Drive.setChip();
 }
