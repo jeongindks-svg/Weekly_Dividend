@@ -13,7 +13,7 @@ const ymTitle = k => { const [y,m]=k.split("-"); return `${y}년 ${+m}월`; };
 function journalItems(){
   const out=[];
   for(const h of S.holdings) for(const l of (h.lots||[])){ if(l.sell||!(l.shares>0)) continue;
-    out.push({k:"buy",date:l.date,h,ticker:h.ticker,shares:l.shares,krw:lotCostKRW(h,l),memo:l.memo||"",us:h.currency!=="KRW",unit:lotBase(l)/l.shares}); }
+    out.push({k:"buy",re:!!l.re,date:l.date,h,ticker:h.ticker,shares:l.shares,krw:lotCostKRW(h,l),memo:l.memo||"",us:h.currency!=="KRW",unit:lotBase(l)/l.shares}); }
   for(const t of S.trades) out.push({k:"sell",date:t.date,t,ticker:t.ticker,shares:t.shares,krw:t.proceedsKRW,memo:t.memo||"",real:t.realized||0,pct:t.realizedPct||0,us:t.currency!=="KRW",unit:t.price});
   return out.sort((a,b)=>b.date.localeCompare(a.date)||(a.k<b.k?-1:1));
 }
@@ -24,7 +24,7 @@ function realizedSum(){
 }
 function journalRow(x){
   const price=x.us?"$"+fmtPs(+x.unit.toFixed(4)):won(x.unit);
-  return `<div class="lrow tap" ${x.k==="buy"?`data-hold="${x.h.id}"`:`data-trade="${x.t.id}"`}><div><div class="t"><span class="tag ${x.k}">${x.k==="buy"?"매수":"매도"}</span> ${esc(x.ticker)}</div>
+  return `<div class="lrow tap" ${x.k==="buy"?`data-hold="${x.h.id}"`:`data-trade="${x.t.id}"`}><div><div class="t"><span class="tag ${x.k}">${x.k==="buy"?"매수":"매도"}</span>${x.re?` <span class="tag re">재투자</span>`:""} ${esc(x.ticker)}</div>
     <div class="s num">${fmtD(parseD(x.date))} · ${qty(x.shares)}주 × ${price}</div>${x.memo?`<div class="memo">“${esc(x.memo)}”</div>`:""}</div>
     <div class="r"><div class="p num">${won(x.krw)}</div>${x.k==="sell"?`<div class="s num ${cls(x.real)}">${wonS(x.real)} (${pct(x.pct,1)})</div>`:""}</div></div>`;
 }

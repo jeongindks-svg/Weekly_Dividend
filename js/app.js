@@ -17,7 +17,12 @@ function bindView(){
   segOf("#hsort",b=>holdSort=b.dataset.s); segOf("#hfilter",b=>holdFilter=b.dataset.a); segOf("#dseg",b=>divMode=b.dataset.m); segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
   v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; render(); window.scrollTo(0,0); });
   on("#addHold2",()=>holdSheet()); on("#goCal",()=>monthCalSheet());
+  const hq=v.querySelector("#hq"); if(hq) hq.oninput=()=>{ holdQ=hq.value; const p=hq.selectionStart; render(); const n=$("#hq"); if(n){ n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} } };
+  const hg=v.querySelector("#hgrp"); if(hg) hg.onchange=()=>{ holdGroup=hg.value; render(); };
+  on("#hcmp",()=>{ holdCompact=!holdCompact; render(); });
+  v.querySelectorAll("[data-gt]").forEach(g=>g.onclick=()=>{ const k=g.dataset.gt; if(holdShut.has(k)) holdShut.delete(k); else holdShut.add(k); render(); });
   segOf("#hmode",b=>holdMode=b.dataset.hm); segOf("#jseg",b=>jFilter=b.dataset.f); segOf("#cfilter",b=>cashAcc=b.dataset.a);
+  on("#reMark",()=>{ const n=autoMarkReinvest(); if(!n){ toast("표시할 매수가 없어요"); return; } persist(); render(); toast(`${n}건을 재투자로 표시했어요. 맞지 않으면 종목 편집 → 매수 기록에서 고쳐 주세요`); });
   on("#addBuy",buyPick); on("#addSell",()=>sellSheet()); on("#addCash",()=>cashSheet());
   v.querySelectorAll("[data-trade]").forEach(r=>r.onclick=()=>tradeSheet(r.dataset.trade));
   v.querySelectorAll("[data-cash]").forEach(r=>r.onclick=()=>cashSheet(r.dataset.cash));
