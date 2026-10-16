@@ -84,26 +84,23 @@ function viewHome(){
   const labels=[], vals=[], tg=[], m0=monday(now), firstK=wk.size?[...wk.keys()].sort()[0]:isoOf(m0);
   for(let k=firstK; k<=isoOf(m0); k=addDays(k,7)){ labels.push(fmtD(parseD(k))); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
   const hasGoal=tg.some(t=>t>0);
+  const dl=thisWk>0&&lastWk>0?(thisWk-lastWk)/lastWk*100:null;
   return `
-  ${topCard()}
+  ${topCard(true)}
   <section class="card hero">
     <div class="label">${y}년 받은 배당 (세후)</div>
     <div class="big num">${won(ytd)}</div>
     <div class="sub">배당 들어온 주 ${cells.filter(c=>c.v>0).length}주 · 누적 ${won(total)}</div>
+    ${weekFlow()}
     ${goalBlock()}
   </section>
   ${weekDaysCard()}
-  <section class="stats">
-    <div class="stat"><div class="k">이번 주 (세후)</div><div class="v num">${won(thisWk)}</div><div class="muted" style="font-size:12px">지난주 ${won(lastWk)}</div></div>
-    <div class="stat"><div class="k">최근 4주 평균 / 주</div><div class="v num">${won(avg)}</div></div>
-    <div class="stat"><div class="k">연 환산 예상</div><div class="v num">${won(avg*52)}</div></div>
-    <div class="stat" data-go-rate title="누르면 배당률 그래프로 이동"><div class="k">원금 대비 주배당률</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:12px">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"계획 탭에서 원금을 넣어요"}</div></div>
+  <section class="card list">
+    <div class="lrow"><div><div class="t">최근 4주 평균 / 주</div><div class="s">세후 · 이번 주 제외한 흐름</div></div><div class="r"><div class="p num">${won(avg)}</div></div></div>
+    <div class="lrow"><div><div class="t">연 환산 예상</div><div class="s">최근 4주 평균 × 52</div></div><div class="r"><div class="p num">${won(avg*52)}</div></div></div>
+    <div class="lrow tap" data-go-rate><div><div class="t">원금 대비 주배당률</div><div class="s">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"종목 평단·수량을 넣으면 계산돼요"}</div></div><div class="r"><div class="p num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"} <span class="chev">›</span></div></div></div>
   </section>
-  <section class="card"><h2>올해 주간 기록 <small>점을 누르면 금액</small></h2><div class="strip">${strip}</div><div class="strip-legend"><span>1월</span><span>6월</span><span>12월</span></div></section>
-  ${alertCard()}
-  ${weekCalCard()}
-  ${monthlyCard()}
-  <section class="card"><h2>주별 받은 배당 <small>옆으로 밀면 이전 주가 보여요</small></h2>${scrollBars({labels,values:vals,target:hasGoal?tg:0})}</section>`;
+  ${alertCard()}`;
 }
 
 function viewLog(){
@@ -205,11 +202,7 @@ function viewChart(modeOverride,noSeg){
     body=`<section class="card"><h2>${y}년 월별 배당 </h2>${barChart({labels:months.map((_,i)=>(i+1)+"월"),values:months,target:hasGoal?goals:0})}
       <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>그달 목표</span><span>흐린 막대: 목표 미달</span>`:""}</div></section>`;
   } else if(mode==="week"){
-    const wk=new Map(); for(const e of S.entries){ const k=weekKey(e.date); wk.set(k,(wk.get(k)||0)+amtOf(e,b)); }
-    const m0=monday(now), labels=[], vals=[], tg=[];
-    for(let i=15;i>=0;i--){ const m=new Date(m0); m.setDate(m.getDate()-7*i); const k=isoOf(m); labels.push(weekLabel(k).replace("주차","주")); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
-    body=`<section class="card"><h2>최근 16주 </h2>${barChart({labels,values:vals,target:hasGoal?tg:0,labelEvery:3})}
-      <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>주간 목표 (월 목표×12÷52)</span>`:""}</div></section>`;
+    body=`<section class="card"><h2>주간 배당 흐름 <small>막대를 누르면 내역</small></h2>${weekFlow()}</section>`;
   } else {
     const labels=[], act=[], tgt=[]; let run=0, trun=0;
     for(let i=0;i<12;i++){ labels.push((i+1)+"월"); if(i<=cm){ run+=months[i]; act.push(i>=startM||run>0?run:null); } else act.push(null);
@@ -218,7 +211,7 @@ function viewChart(modeOverride,noSeg){
     body=`<section class="card"><h2>${y}년 누적 배당 <small>${basisName()} ${won(months.reduce((a,v)=>a+v,0))}</small></h2>${lineChart({labels,series,labelEvery:2})}
       <div class="legend"><span><i style="background:var(--red)"></i>실제 누적</span>${hasGoal?`<span><i style="background:var(--blue)"></i>목표 누적</span>`:""}</div></section>`;
   }
-  return seg+goalCard+body;
+  return mode==="week"?seg+body+goalCard:seg+goalCard+body;
 }
 
 function yearOverview(){

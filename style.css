@@ -477,3 +477,95 @@ tr.grow .ghd{border-top:none;margin:0}
 .hctl input{grid-column:1/-1;width:100%}
 .hctl select{width:100%}
 .btnrow #bq{flex:1 1 110px;min-width:0;width:auto}
+
+/* ===== v8: 아이폰(iOS) 느낌 정리 ===== */
+:root{ --bg:#F2F3F7; --shadow:0 0 0 .5px rgba(60,60,67,.07),0 2px 12px rgba(60,60,67,.05); --cell0:#E9EBF2; }
+@media (prefers-color-scheme: dark){ :root{ --bg:#000000; --paper:#1C1C1F; --rule:#2C2C31; --cell0:#2A2A30; --shadow:0 0 0 .5px rgba(255,255,255,.04); } }
+body{font-size:16px;line-height:1.5}
+.wrap{padding:8px 16px 120px}
+/* 큰 제목 */
+header.top{padding:14px 2px 12px;align-items:flex-end}
+header.top h1{font-size:32px;font-weight:800;letter-spacing:-.04em;line-height:1.1}
+.chip{font-size:12px;padding:7px 12px;color:var(--muted)}
+.chip.ico{padding:8px 10px}
+/* 카드 · 목록 */
+.card{border-radius:20px;padding:18px;margin-bottom:12px}
+.card.list{padding:2px 18px}
+h2{font-size:17px;font-weight:700;margin-bottom:12px}
+h2 small{font-weight:500}
+.lrow,.hl{padding:12px 0}
+.lrow .p{font-size:17px;font-weight:600}
+.chev{color:var(--muted);font-weight:400;margin-left:4px}
+.gh,.gh2{text-transform:none;letter-spacing:0}
+/* 버튼: 기본은 연한 파랑, 중요한 것만 꽉 찬 파랑 */
+button{background:var(--blue-soft);color:var(--blue);box-shadow:none;border-radius:14px;font-weight:600}
+button.primary{background:var(--btn);color:var(--btn-fg)}
+button.ghost{background:var(--cell0);color:var(--ink)}
+button.danger{background:var(--red-soft);color:var(--red);box-shadow:none}
+button:active{opacity:.7}
+/* 분할 컨트롤 · 알약 · 칩 (iOS segmented) */
+.seg,.pills{background:var(--cell0);border-radius:12px;padding:3px;gap:2px;display:flex}
+.pills{margin:0 0 14px}
+.seg button,.pills button{flex:1;border-radius:9px;background:transparent;color:var(--muted);box-shadow:none;padding:8px 6px;font-size:14px;font-weight:600}
+.seg button[aria-pressed="true"],.pills button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chips button{background:var(--cell0);color:var(--ink);box-shadow:none;font-weight:600}
+.chips button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.hctl button[aria-pressed="true"]{background:var(--blue);color:#fff}
+/* 입력 */
+input,select,textarea{background:var(--cell0);border-radius:12px}
+/* 하단 탭: 투명 유리 */
+nav.tabs{background:color-mix(in srgb,var(--paper) 78%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--rule)}
+nav.tabs button{background:transparent;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{color:var(--blue)}
+/* 시트: 위쪽 손잡이 */
+.sheet{border-radius:22px 22px 0 0;padding-top:22px;position:relative}
+.sheet::before{content:"";position:absolute;top:8px;left:50%;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--cell0)}
+.sheet-bg{background:rgba(0,0,0,.38);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.toast{background:rgba(28,28,31,.92);backdrop-filter:blur(8px)}
+.fab{padding:13px 20px;box-shadow:0 6px 18px rgba(78,105,207,.3)}
+/* TOTAL ASSET 카드 */
+.topcard{padding:20px 18px 16px}
+.topcard .thead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.topcard .tm{min-width:0}
+.topcard .tl{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--blue)}
+.topcard .tv{font-size:36px;font-weight:800;letter-spacing:-.04em;line-height:1.12;margin:3px 0 2px}
+.topcard .td{font-size:13.5px;color:var(--muted)}
+.tic{display:flex;gap:8px;flex:none}
+.ci{width:40px;height:40px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;background:var(--blue-soft);color:var(--blue)}
+.ci svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.topcard.cp{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}
+.topcard.cp .tv{font-size:26px}
+.topcard.cp .td{font-size:12.5px}
+.spark{position:relative;margin:14px -4px 0;cursor:pointer}
+.spark svg{display:block;width:100%;height:112px}
+.spark .sdot{position:absolute;right:2px;top:0;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 0%,transparent);display:none}
+.spark.none{cursor:default;text-align:center;font-size:13px;color:var(--muted);background:var(--bg);border-radius:14px;padding:22px 12px;margin:14px 0 0}
+.slg{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin:2px 2px 0}
+.slg i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.slg i.dash{height:0;border-top:2px dashed var(--muted);background:none}
+.rchips{display:flex;gap:4px;margin-top:10px;background:var(--cell0);border-radius:10px;padding:3px}
+.rchips button{flex:1;padding:6px 0;font-size:13px;border-radius:8px;background:transparent;color:var(--muted)}
+.rchips button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+/* 받은 배당 카드 + 주간 흐름 */
+.card.hero{padding:18px}
+.wfh{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:16px}
+.wfh .k{font-size:12px;color:var(--muted);min-height:16px}
+.wfv{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.dpill{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;background:var(--cell0);color:var(--muted);white-space:nowrap}
+.dpill.up{background:var(--red-soft);color:var(--red)}.dpill.down{background:var(--blue-soft);color:var(--blue)}
+.wfc{margin-top:6px}
+.hero .legend{margin-top:4px}
+.hero .seg{background:rgba(255,255,255,.55)}
+@media (prefers-color-scheme: dark){ .hero .seg{background:rgba(255,255,255,.08)} }
+/* 이번 주 일정 */
+.wd.today{background:var(--blue)}
+@media (min-width:900px){
+  header.top h1{font-size:28px}
+  .topcard .tv{font-size:42px}
+  nav.tabs button[aria-selected="true"]{background:var(--blue-soft);color:var(--blue)}
+}
+/* 큰 제목: 위에 작은 앱 이름, 아래에 현재 화면 이름 */
+header.top h1{display:flex;flex-direction:column;gap:0}
+header.top h1 .app{display:block;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0;line-height:1.3}
+header.top h1 .pg{display:block;font-size:32px;font-weight:800;letter-spacing:-.04em;line-height:1.1}
+@media (min-width:900px){ header.top h1 .app{display:none} header.top h1 .pg{font-size:28px} }

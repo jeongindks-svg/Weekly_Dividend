@@ -17,6 +17,9 @@ function bindView(){
   segOf("#hsort",b=>holdSort=b.dataset.s); segOf("#hfilter",b=>holdFilter=b.dataset.a); segOf("#dseg",b=>divMode=b.dataset.m); segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
   v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; render(); window.scrollTo(0,0); });
   on("#addHold2",()=>holdSheet()); on("#goCal",()=>monthCalSheet());
+  const tr=v.querySelector("#toprange"); if(tr) tr.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ topRange=b.dataset.r; render(); } };
+  const wsg=v.querySelector("#wdseg"); if(wsg) wsg.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ wdRange=+b.dataset.n; render(); } };
+  const ga=v.querySelector("[data-goasset]"); if(ga) ga.onclick=()=>{ tab="chart"; chartMode="asset"; render(); window.scrollTo(0,0); };
   const hq=v.querySelector("#hq"); if(hq) hq.oninput=()=>{ holdQ=hq.value; const p=hq.selectionStart; render(); const n=$("#hq"); if(n){ n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} } };
   const hg=v.querySelector("#hgrp"); if(hg) hg.onchange=()=>{ holdGroup=hg.value; render(); };
   on("#hcmp",()=>{ holdCompact=!holdCompact; render(); });
