@@ -363,17 +363,27 @@ function viewSet(){
     <details class="help"><summary>키 받는 법 · 보관 방식</summary><ol>
       <li>twelvedata.com 에서 무료 가입 (카드 불필요)</li><li>대시보드 API Keys에서 키 복사</li><li>위 칸에 붙여 넣고 저장</li></ol>
       키는 이 기기에만 저장돼요. 구글 동기화와 백업 파일에는 들어가지 않아서 다른 기기에서는 따로 넣어야 해요. 공유 기기에서는 쓰고 나서 지워 주세요. 무료는 하루 800회, 분당 8회까지예요. 국내 종목은 보유 탭에서 현재가를 직접 넣어 주세요.</details>`;
-  const google=`<p class="muted" style="margin:0 0 10px">같은 구글 계정으로 연결하면 기기끼리 기록이 합쳐져요.${st.gLinked?(Drive.lastSync?` 이 기기 마지막 동기화 ${new Date(Drive.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:" 이 기기에서는 아직 동기화 전이에요."):""}</p>
-    <input id="sgc" value="${esc(st.gClientId)}" placeholder="구글 OAuth 클라이언트 ID" autocomplete="off" spellcheck="false" aria-label="구글 OAuth 클라이언트 ID">
-    <div class="btnrow" style="margin:10px 0"><button class="primary" id="gLink">${st.gLinked?"지금 동기화":"구글 계정 연결"}</button><button id="gShare">연결 링크 복사</button>${st.gLinked?`<button class="ghost" id="gUnlink">연결 해제</button>`:""}</div>
-    <details class="help"><summary>클라이언트 ID 만드는 법 (처음 한 번)</summary><ol>
-      <li>console.cloud.google.com 접속 → 새 프로젝트 만들기</li>
-      <li>API 및 서비스 → 라이브러리 → <b>Google Drive API</b> 사용 설정</li>
-      <li>OAuth 동의 화면 → 외부(External) → 앱 이름·이메일 입력 → 테스트 사용자에 <b>내 구글 계정</b> 추가</li>
-      <li>사용자 인증 정보 → OAuth 클라이언트 ID → 유형 <b>웹 애플리케이션</b></li>
-      <li>승인된 JavaScript 원본에 <b>${esc(location.origin&&location.origin.startsWith("http")?location.origin:"https://내아이디.github.io")}</b> 추가 → 만들기</li>
-      <li>나온 클라이언트 ID를 위 칸에 붙여 넣고 ‘구글 계정 연결’</li></ol>
-      다른 기기에서는 ‘연결 링크 복사’로 보낸 링크를 열면 ID가 자동으로 들어가요. 로그인이 풀리면 위쪽 ☁ 버튼을 눌러 다시 연결해 주세요.</details>`;
+  const cfgd=Cloud.configured(), who=Cloud.email();
+  const google=`<p class="muted" style="margin:0 0 10px">${cfgd?(Cloud.ready()?`<b>${esc(who||"로그인됨")}</b> 계정으로 연결돼 있어요. 한 번 로그인하면 계속 유지되고, 변경하면 자동으로 동기화돼요.${Cloud.lastSync?` 마지막 동기화 ${new Date(Cloud.lastSync).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:""}`:"구글로 한 번 로그인하면 기기끼리 기록이 자동으로 합쳐져요."):"먼저 아래 ‘처음 한 번’ 안내대로 Supabase 주소와 키를 넣어 주세요."}</p>
+    ${Cloud.fromFile()?"":`<input id="sbu" value="${esc((Cloud.cfg()||{}).url||"")}" placeholder="Supabase 프로젝트 주소 (https://○○○.supabase.co)" autocomplete="off" spellcheck="false" aria-label="Supabase 주소">
+    <input id="sbk" value="${esc((Cloud.cfg()||{}).key||"")}" placeholder="publishable(anon) 키" autocomplete="off" spellcheck="false" aria-label="Supabase 키" style="margin-top:8px">`}
+    <div class="btnrow" style="margin:10px 0"><button class="primary" id="gLink">${Cloud.ready()?"지금 동기화":"구글로 로그인"}</button>${Cloud.fromFile()?"":`<button id="gShare">연결 링크 복사</button>`}${Cloud.ready()?`<button class="ghost" id="gUnlink">로그아웃</button>`:""}</div>
+    <details class="help"><summary>처음 한 번 설정하는 법</summary><ol>
+      <li>supabase.com 에서 프로젝트를 만들어요 (이미 쓰는 프로젝트가 있으면 그대로 써도 돼요)</li>
+      <li><b>SQL Editor</b>에서 아래 코드를 실행해 저장용 표를 만들어요.<pre style="white-space:pre-wrap;user-select:all;font-size:11.5px;background:var(--bg);padding:10px;border-radius:12px;margin:6px 0">create table if not exists public.app_state(
+ user_id uuid primary key references auth.users(id) on delete cascade,
+ data jsonb not null default '{}',
+ updated_at timestamptz not null default now());
+alter table public.app_state enable row level security;
+create policy "own select" on public.app_state for select to authenticated using ((select auth.uid())=user_id);
+create policy "own insert" on public.app_state for insert to authenticated with check ((select auth.uid())=user_id);
+create policy "own update" on public.app_state for update to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "own delete" on public.app_state for delete to authenticated using ((select auth.uid())=user_id);</pre></li>
+      <li>Google Cloud Console → OAuth 클라이언트 ID(웹 애플리케이션) 만들기. <b>승인된 리디렉션 URI</b>에 Supabase가 알려 주는 콜백 주소(<code>https://○○○.supabase.co/auth/v1/callback</code>)를 넣어요</li>
+      <li>Supabase → Authentication → Providers → <b>Google</b> 켜고 클라이언트 ID·시크릿 입력</li>
+      <li>Supabase → Authentication → URL Configuration의 <b>Site URL</b>과 <b>Redirect URLs</b>에 이 앱 주소 <b>${esc(location.origin&&location.origin.startsWith("http")?location.origin+location.pathname:"https://내아이디.github.io/앱주소/")}</b> 를 넣어요</li>
+      <li>Project Settings → API에서 <b>Project URL</b>과 <b>publishable(anon) 키</b>를 위 칸에 넣고 ‘구글로 로그인’. (service_role·secret 키는 절대 넣지 마세요)</li></ol>
+      다른 기기에서는 ‘연결 링크 복사’로 보낸 링크를 열고 구글로 로그인만 하면 돼요.</details>`;
   const data=`<div class="btnrow" style="margin-bottom:10px"><button id="syOut">백업 파일 저장</button><button id="syIn">파일 합치기</button><button id="csv" class="ghost">CSV 내보내기</button></div>
     <input type="file" id="syFile" accept=".json,application/json,text/plain" hidden>
     <div class="btnrow" style="margin-bottom:12px"><button class="danger" id="wipe">이 기기의 모든 기록 삭제</button></div>`;
@@ -386,7 +396,7 @@ function viewSet(){
     ${grp("goal","목표 · 수익률",`재투자 ${st.reinvestPct}%`,goal)}
     ${grp("fx","환율 · 세금",`${st.fx.toLocaleString()}원 · ${st.taxUS}% / ${st.taxKR}%`,fx)}
     ${grp("price","주가 연동",st.tdKey?"연결됨":"미연결",price)}
-    ${grp("google","구글 계정",st.gLinked?"연결됨":"미연결",google)}
+    ${grp("google","구글 계정 · 자동 동기화",Cloud.ready()?"연결됨":"미연결",google)}
     ${grp("data","백업 · 데이터","",data)}
   </section>
   <p class="muted" style="text-align:center;font-size:12px;margin:4px 0 16px">v${APP_VERSION} · ${APP_DATE}${justUpdated?` · <span class="up">방금 업데이트 (v${esc(prevVer)} → v${APP_VERSION})</span>`:""}<br>${APP_NOTES}</p>`;
@@ -401,5 +411,5 @@ function render(){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
   $("#fab").hidden = !(tab==="home"||tab==="div"||tab==="log");
   const tb=document.querySelector('nav.tabs button[data-tab="'+nv+'"]'), pg=document.querySelector("header.top .pg"); if(tb&&pg) pg.textContent=tb.textContent;
-  bindView(); Drive.setChip();
+  bindView(); Cloud.setChip();
 }
