@@ -12,6 +12,7 @@ function bindView(){
   on("#goHold",()=>{ tab="hold"; render(); window.scrollTo(0,0); });
   v.querySelectorAll("[data-month]").forEach(r=>r.onclick=()=>monthSheet(r.dataset.month));
   v.querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week));
+  v.querySelectorAll("[data-day]").forEach(r=>r.onclick=()=>daySheet(r.dataset.day));
   v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
   const ps=v.querySelector("#pseg"); if(ps) ps.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ planMode=b.dataset.m; render(); } };
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;
@@ -83,7 +84,7 @@ function bindView(){
     const keep={tdKey:S.settings.tdKey,gClientId:S.settings.gClientId}; S=clone(DEFAULT); Object.assign(S.settings,keep); saveLocal(); render(); toast("삭제했어요"); });
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; render(); window.scrollTo(0,0); if(tab==="hold") refreshQuotes(false); });
-$("#fab").onclick=batchSheet;
+$("#fab").onclick=()=>batchSheet();
 $("#syncChip").onclick=()=>{ if(S.settings.gLinked||S.settings.gClientId) Drive.sync(true); else { tab="set"; render(); toast("설정에서 구글 계정을 연결할 수 있어요"); } };
 
 // ---------- start ----------

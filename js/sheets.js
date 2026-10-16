@@ -9,6 +9,14 @@ function monthSheet(ym){
     <div class="btnrow" style="margin-top:12px"><button id="msClose">닫기</button></div>`,()=>{ $("#msClose").onclick=closeSheet;
       $("#sheet").querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week)); });
 }
+function daySheet(D){
+  const x=dayInfo(D), b=basis();
+  openSheet(`<h3>${x.d.getMonth()+1}월 ${x.d.getDate()}일 (${DOWN[x.dow]})</h3>
+    ${x.got.length?`<div class="av2s num amt" style="font-size:26px;font-weight:700;margin:4px 0 8px">${won(x.recv)}</div><p class="hint">받은 배당 · ${x.got.length}건</p>
+    ${x.got.map(e=>`<div class="lrow"><div><div class="t">${esc(e.ticker)}</div><div class="s">${e.currency==="KRW"?won(e.perShare):"$"+fmtPs(e.perShare)} × ${qty(e.shares)}주</div></div><div class="r"><div class="p amt">${won(amtOf(e,b))}</div></div></div>`).join("")}`:`<p class="hint">이 날 기록된 배당이 없어요.</p>`}
+    ${x.exp.length?`<h3 style="margin:14px 0 2px;font-size:15px">입금 예정 <span class="muted" style="font-weight:400">지난 금액 기준 예상</span></h3>${x.exp.map(o=>`<div class="lrow"><div><div class="t">${esc(o.h.ticker)}</div><div class="s">${qty(o.h.shares)}주${o.amt?"":" · 지난 기록 없음"}</div></div><div class="r"><div class="p muted">${o.amt?"~"+won(o.amt):"-"}</div></div></div>`).join("")}`:""}
+    <div class="btnrow" style="margin-top:14px"><button class="ghost" id="dsx">닫기</button><button class="primary" id="dsgo">이 날 배당 기록하기</button></div>`,()=>{ $("#dsx").onclick=closeSheet; $("#dsgo").onclick=()=>batchSheet(D); });
+}
 function weekSheet(k){
   const b=basis(), es=S.entries.filter(e=>weekKey(e.date)===k).sort((a,c)=>a.date.localeCompare(c.date)||a.ticker.localeCompare(c.ticker)), i=weekInfo(es,b);
   openSheet(`<h3>${weekLabel(k,true)} <span class="muted" style="font-weight:400;font-size:13px">${fmtD(parseD(k))} – ${fmtD(parseD(addDays(k,6)))}</span></h3>
@@ -37,20 +45,21 @@ function autoFxInto(dateSel, fxSel, noteSel, onDone){
   return st;
 }
 
-function batchSheet(){
-  if(!S.holdings.length){
-    openSheet(`<h3>먼저 종목을 등록해 주세요</h3><p class="hint">보유 종목과 수량을 등록해 두면, 매주 주당 배당금만 입력해 한 번에 기록할 수 있어요.</p>
+function batchSheet(dateStr){
+  const divs=S.holdings.filter(isDivStock), D0=dateStr||todayStr(), onFor=(h,D)=>{ const pd=payDaysOf(h); return !((h.freq||"주배당")==="주배당"&&pd.length) || pd.includes(parseD(D).getDay()); };
+  if(!divs.length){
+    openSheet(`<h3>먼저 배당 종목을 등록해 주세요</h3><p class="hint">배당을 주는 종목과 수량을 등록해 두면, 주당 배당금만 입력해 한 번에 기록할 수 있어요. 배당이 없는 일반 주식은 여기에 나오지 않아요.</p>
       <div class="btnrow"><button class="ghost" id="bx">닫기</button><button class="primary" id="bgo">종목 추가</button></div>`, ()=>{ $("#bx").onclick=closeSheet; $("#bgo").onclick=()=>holdSheet(); });
     return;
   }
-  const items=S.holdings.map(h=>`<div class="batch-item" data-h="${h.id}">
-    <div class="top"><label class="chk"><input type="checkbox" checked> ${esc(h.ticker)}</label><span class="muted num" style="font-size:12px">${qty(h.shares)}주</span></div>
+  const items=divs.map(h=>`<div class="batch-item" data-h="${h.id}">
+    <div class="top"><label class="chk"><input type="checkbox" ${onFor(h,D0)?"checked":""}> ${esc(h.ticker)}</label><span class="muted num" style="font-size:12px">${qty(h.shares)}주</span></div>
     <div class="grid2"><div><label class="f">주당 배당 (${h.currency==="KRW"?"원":"$"})</label><input class="ps" type="number" inputmode="decimal" step="any" value="${lastPerShare(h.ticker)}" placeholder="0.00"></div>
     <div><label class="f">수량</label><input class="sh" type="number" inputmode="decimal" step="any" value="${h.shares}"></div></div>
     <div class="calc num"></div></div>`).join("");
   openSheet(`<h3>배당 기록</h3><p class="hint">입금일을 바꾸면 그날 환율과 주가가 자동으로 들어가요. 지난번 주당 배당금은 미리 채워 뒀어요.</p>
     <label class="f" for="bd">입금일 <b id="bdw" style="color:var(--ink)"></b></label>
-    <div class="datebar"><button type="button" id="bprev" aria-label="하루 전">‹</button><input id="bd" type="date" value="${todayStr()}"><button type="button" id="bnext" aria-label="하루 뒤">›</button><button type="button" id="btoday">오늘</button></div>
+    <div class="datebar"><button type="button" id="bprev" aria-label="하루 전">‹</button><input id="bd" type="date" value="${D0}"><button type="button" id="bnext" aria-label="하루 뒤">›</button><button type="button" id="btoday">오늘</button></div>
     <label class="f" for="bfx">환율 (입금일 기준, $1 = ₩)</label>
     <div class="fxrow"><input id="bfx" type="number" inputmode="decimal" step="0.01" value="${S.settings.fx}"><button type="button" id="bfxauto">자동</button></div>
     <div class="calc" id="bfxn"></div>
@@ -66,7 +75,8 @@ function batchSheet(){
         $("#bsum").textContent=`이번 주 세후 합계 ${won(tot)}`; };
       $("#sheet").addEventListener("input",upd); upd();
       const fxs=autoFxInto("#bd","#bfx","#bfxn",upd);
-      const DOW="일월화수목금토", dw=()=>{ const v=$("#bd").value; $("#bdw").textContent=v?`· ${DOW[parseD(v).getDay()]}요일`:""; };
+      const DOW="일월화수목금토", dw=()=>{ const v=$("#bd").value; $("#bdw").textContent=v?`· ${DOW[parseD(v).getDay()]}요일`:"";
+        if(v) $("#sheet").querySelectorAll(".batch-item").forEach(el=>{ const h=S.holdings.find(x=>x.id===el.dataset.h); el.querySelector("input[type=checkbox]").checked=onFor(h,v); }); upd(); };
       const shift=n=>{ const v=$("#bd").value||todayStr(); $("#bd").value=addDays(v,n); $("#bd").dispatchEvent(new Event("change")); };
       $("#bprev").onclick=()=>shift(-1); $("#bnext").onclick=()=>shift(1);
       $("#btoday").onclick=()=>{ $("#bd").value=todayStr(); $("#bd").dispatchEvent(new Event("change")); };
@@ -139,6 +149,7 @@ function holdSheet(id){
   const c0=h&&h.currency!=="KRW"?holdCalc(h):null;
   const r2=(n,d)=>n?Math.round(n*10**d)/10**d:"";
   const vU=c0?r2(c0.aU,4):"", vK=c0?r2(c0.aK,2):"", vW=h&&h.currency==="KRW"?(h.avgCost||""):"";
+  let selDays=h?[...payDaysOf(h)]:[];
   let lots=(h&&h.lots?h.lots:[]).map(x=>Object.assign({},x));
   const hadLots=lots.length>0, prevFx=h&&+h.buyFx>0?+h.buyFx:0; // 환율을 안 적은 매수는 이 종목의 기존 평균 매수 환율로 계산해요
   let scale=h&&+h.lotScale>0?+h.lotScale:1; // 증권사 평단과 맞추는 보정 비율 (수수료·소수점 차이)
@@ -166,8 +177,8 @@ function holdSheet(id){
       <p class="calc" style="margin:6px 0 0">총 매수금액은 그 수량을 산 전체 가격이에요. 1주 평단은 자동으로 계산돼요. 추가로 산 날짜별로 적으면 그 시점의 원금으로 배당률을 계산해요. 배당으로 재투자해서 산 것도 매수로 적어 주세요.</p></div>
     <div class="preview num" id="hpv" style="font-size:13px"></div>
     <div class="grid2"><div><label class="f" for="hm">현재가 직접 입력 <span class="hcur"></span></label><input id="hm" type="number" inputmode="decimal" step="any" value="${h&&h.manualPrice?h.manualPrice:""}" placeholder="자동이면 비워 두기"></div>
-    <div><label class="f" for="hf">지급 주기</label><select id="hf">${["주배당","월배당","분기배당"].map(f=>`<option ${h&&h.freq===f?"selected":""}>${f}</option>`).join("")}</select></div></div>
-    <label class="f" for="hp">지급 요일 (선택)</label><input id="hp" value="${esc(h?h.payday||"":"")}" placeholder="예: 금요일">
+    <div><label class="f" for="hf">배당 주기</label><select id="hf">${FREQS.map(f=>`<option value="${f}" ${(h?h.freq||"주배당":"주배당")===f?"selected":""}>${f==="배당 없음"?"배당 없음 (일반 주식)":f}</option>`).join("")}</select></div></div>
+    <div id="hpdbox"><label class="f">지급 요일 <span class="muted">(여러 개 선택 · 이번 주 일정에 표시돼요)</span></label><div class="dowrow" id="hpd">${[...DOWN].map((c,i)=>`<button type="button" data-d="${i}" aria-pressed="${selDays.includes(i)}">${c}</button>`).join("")}</div></div>
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
@@ -199,6 +210,8 @@ function holdSheet(id){
         pv.innerHTML=msg; pv.hidden=!msg; };
       $("#hc").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; cur=b.dataset.c; lots.forEach(l=>{ if(cur==="KRW") l.fx=0; }); $("#hc").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cur)); drawLots(); upd(); };
       $("#sheet").addEventListener("input",upd); drawLots(); upd();
+      $("#hpd").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; const d=+b.dataset.d; selDays=selDays.includes(d)?selDays.filter(x=>x!==d):[...selDays,d]; b.setAttribute("aria-pressed",selDays.includes(d)); };
+      const frq=()=>{ $("#hpdbox").hidden=$("#hf").value==="배당 없음"; }; $("#hf").onchange=frq; frq();
       $("#hcx").onclick=closeSheet;
       if(h) $("#hdel").onclick=()=>{ if(!confirm("종목을 삭제할까요? 지난 배당 기록은 남아 있어요.")) return; S.holdings=S.holdings.filter(x=>x.id!==h.id); markDeleted(h.id); persist(); closeSheet(); };
       $("#hsv").onclick=()=>{
@@ -209,7 +222,7 @@ function holdSheet(id){
         const d0=derive(), t=$("#ht").value.trim().toUpperCase(), sh=lots.length?d0.sh:+$("#hs").value;
         if(!t||!(sh>0)){ toast("티커와 수량을 입력해 주세요"); return; }
         if(h&&lots.length&&!hadLots&&Math.abs(d0.sh-h.shares)>1e-6&&!confirm(`매수 기록의 합계는 ${d0.sh}주인데 지금 보유 수량은 ${h.shares}주예요.\n저장하면 보유 수량이 ${d0.sh}주로 바뀌어요. 계속할까요?`)) return;
-        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,fxAvg:lots.length&&cur!=="KRW"?fxAvg:0,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payday:$("#hp").value.trim(),updated:Date.now(),krwOk:cur==="KRW"};
+        const rec={ticker:t,shares:sh,lots,lotScale:lots.length?scale:1,fxAvg:lots.length&&cur!=="KRW"?fxAvg:0,currency:cur,manualPrice:+$("#hm").value||0,freq:$("#hf").value,payDays:[...selDays].sort(),payday:"",updated:Date.now(),krwOk:cur==="KRW"};
         if(cur==="KRW"){ Object.assign(rec,{avgCost:lots.length?d0.avg:(+$("#haw").value||0),avgCostKRW:0,buyFx:0,avgCur:"KRW"}); }
         else { const aU=lots.length?d0.avg:(+$("#hau").value||0), aK=lots.length?d0.avgK:(+$("#hak").value||0); Object.assign(rec,{avgCost:aU,avgCostKRW:aK,buyFx:aU&&aK?Math.round(aK/aU*100)/100:0,avgCur:aK&&!aU?"KRW":"USD"}); }
         if(h) Object.assign(h,rec); else S.holdings.push(Object.assign({id:uid()},rec));

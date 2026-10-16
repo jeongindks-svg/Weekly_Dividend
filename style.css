@@ -1,14 +1,15 @@
 :root{
-  --bg:#F2F4F6; --paper:#FFFFFF; --ink:#191F28; --muted:#6B7684; --rule:#E5E8EB;
-  --red:#F04452; --red-soft:#FDE8EA; --blue:#3182F6; --blue-soft:#E8F3FF; --cell0:#EEF1F4;
-  --shadow:none; --accent:#3182F6; --accent-fg:#fff; --btn:#3182F6; --btn-fg:#fff;
+  --bg:#F5F6FA; --paper:#FFFFFF; --ink:#101828; --muted:#667085; --rule:#EEF0F5;
+  --red:#F04452; --red-soft:#FDECEE; --blue:#2F5BF5; --blue-soft:#EAF0FF; --cell0:#EEF1F7;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05); --accent:#2F5BF5; --accent-fg:#fff; --btn:#2F5BF5; --btn-fg:#fff;
+  --up:#F04452; --down:#3B82F6; --green:#12B76A; --green-soft:#E7F8EF;
   color-scheme:light dark;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#101013; --paper:#1D1D22; --ink:#F2F2F5; --muted:#9A9AA6; --rule:#2B2B33; --red:#F2545F; --red-soft:#3A1F23; --blue:#4D94FF; --blue-soft:#17263D; --cell0:#26262D; }
+  :root{ --bg:#0B0D12; --paper:#151821; --ink:#F2F4F8; --muted:#98A2B3; --rule:#232733; --red:#F2545F; --red-soft:#3A1F23; --blue:#6C8CFF; --blue-soft:#1A2348; --cell0:#1F2430; --accent:#6C8CFF; --btn:#4F73FF; --down:#6CA6FF; --green:#32D583; --green-soft:#12301F; --shadow:0 1px 2px rgba(0,0,0,.3); }
 }
 .card{border-color:transparent;border-radius:20px}
 .stat{border-color:transparent;background:var(--bg);border-radius:14px}
@@ -311,3 +312,66 @@ details.sgrp .gs{margin-left:auto;font-size:13px;color:var(--muted)}
 details.sgrp summary::after{content:"›";color:var(--muted);font-size:20px;transition:transform .15s}
 details.sgrp[open] summary::after{transform:rotate(90deg)}
 details.sgrp .sbody{padding:0 0 4px}
+
+/* ===== v4 디자인 개편 ===== */
+body{font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;letter-spacing:-.011em}
+.down{color:var(--down)}
+.card{border:none;border-radius:24px;box-shadow:var(--shadow);padding:20px}
+.stat{background:var(--paper);border:none;border-radius:20px;box-shadow:var(--shadow);padding:16px}
+.stat .k{font-size:12.5px}.stat .v{font-size:20px;font-weight:700;letter-spacing:-.02em}
+h2{font-size:17px;font-weight:700;letter-spacing:-.02em}
+header.top{padding:10px 2px 16px}
+header.top h1{font-size:24px;font-weight:800;letter-spacing:-.03em}
+.chip{background:var(--paper);border:none;box-shadow:var(--shadow);border-radius:999px;padding:7px 13px;font-weight:500}
+button{border:none;background:var(--paper);box-shadow:inset 0 0 0 1px var(--rule);border-radius:14px;padding:12px 16px;font-weight:600}
+button.primary{background:var(--btn);color:var(--btn-fg);box-shadow:none}
+button.ghost{background:transparent}
+button.danger{color:var(--red);box-shadow:inset 0 0 0 1px var(--red-soft)}
+input,select,textarea{background:var(--bg);border:1.5px solid transparent;border-radius:14px;padding:12px 14px}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);outline:none}
+.seg{background:var(--bg);border:none;border-radius:14px;padding:4px;gap:2px}
+.seg button{border-radius:11px;box-shadow:none;background:transparent;padding:9px 4px;color:var(--muted);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.chips button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+/* 히어로 */
+.card.hero{background:linear-gradient(135deg,#2F5BF5 0%,#5B8CFF 100%);color:#fff;padding:24px}
+.hero .label,.hero .sub,.hero .muted{color:rgba(255,255,255,.82)}
+.hero .big{color:#fff;font-size:40px;font-weight:800;letter-spacing:-.035em}
+.hero .bar{background:rgba(255,255,255,.28)}.hero .bar>span{background:#fff}
+.hero [style*="font-weight:600"]{color:#fff}
+.hero2 .big{font-size:38px;font-weight:800;letter-spacing:-.03em}
+.mini>div{background:var(--bg);border-radius:16px}
+/* 하단 탭 + 아이콘 */
+nav.tabs{background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--rule)}
+nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;font-size:11px;font-weight:600;color:var(--muted);box-shadow:none;border-radius:0;background:transparent}
+nav.tabs button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-selected="true"]{color:var(--accent);box-shadow:none;font-weight:700}
+nav.tabs .brand img{border-radius:9px}
+.fab{background:var(--accent);box-shadow:0 8px 22px rgba(47,91,245,.35);font-weight:700;border-radius:999px}
+@media (min-width:900px){
+  nav.tabs button{flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:14px}
+  nav.tabs button[aria-selected="true"]{background:var(--blue-soft);box-shadow:none}
+}
+/* 이번 주 일정 (요일별) */
+.wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 2px 8px;border-radius:16px;background:var(--bg);box-shadow:none;min-width:0;font-weight:500}
+.wd .dw{font-size:11.5px;color:var(--muted);font-weight:600}
+.wd .dn{font-size:17px;font-weight:700;line-height:1.1}
+.wd .da{font-size:11.5px;color:var(--muted);min-height:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wd .da.got{color:var(--red);font-weight:700}
+.wd .dt{display:flex;flex-direction:column;gap:2px;align-items:center;min-height:36px}
+.wd .dt i{font-style:normal;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:6px;line-height:1.35}
+.wd .dt i.g{background:var(--red-soft);color:var(--red)}
+.wd .dt i.e{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1px var(--rule)}
+.wd .dt i.m{color:var(--muted);padding:0}
+.wd.today{background:var(--accent)}
+.wd.today .dw,.wd.today .dn,.wd.today .da{color:#fff}
+.wd.today .dt i.g{background:rgba(255,255,255,.25);color:#fff}
+.wd.today .dt i.e{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.wd.fut:not(.today) .dn{color:var(--muted)}
+.wsum{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);margin-top:12px;padding:0 2px;flex-wrap:wrap}
+.wsum b{color:var(--ink);font-weight:700}
+.dowrow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dowrow button{padding:10px 0;border-radius:12px;font-weight:600}
+.dowrow button[aria-pressed="true"]{background:var(--accent);color:#fff;box-shadow:none}
+.strip .c{border-radius:5px}

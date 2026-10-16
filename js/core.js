@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="3.5", APP_DATE="2026-10-12", APP_NOTES="주차별 달력 보기·점 누르면 금액, 계획·설정 탭 정리";
+const APP_VERSION="4.0", APP_DATE="2026-10-16", APP_NOTES="디자인 전면 개편·새 아이콘, 일주일 요일별 보기, 일반 주식 지원";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
@@ -36,7 +36,12 @@ const weekKey = s => isoOf(monday(parseD(s)));
 const addDays = (s,n) => { const d=parseD(s); d.setDate(d.getDate()+n); return isoOf(d); };
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const holdingOf = t => S.holdings.find(h=>h.ticker===t);
-const freqN = t => { const f=(holdingOf(t)||{}).freq||"주배당"; return f==="월배당"?12:f==="분기배당"?4:52; };
+const FREQS = ["주배당","월배당","분기배당","반기배당","연배당","배당 없음"];
+const freqN = t => { const f=(holdingOf(t)||{}).freq||"주배당"; return f==="월배당"?12:f==="분기배당"?4:f==="반기배당"?2:f==="연배당"?1:f==="배당 없음"?0:52; };
+const isDivStock = h => (h.freq||"주배당")!=="배당 없음";
+// 지급 요일: 숫자 배열(0=일 … 6=토). 예전에 글자로 적은 값("금요일", "수,금")도 읽어요
+const DOWN = "일월화수목금토";
+function payDaysOf(h){ if(Array.isArray(h.payDays)) return h.payDays; const t=String(h.payday||"").replace(/요일/g,""), out=[]; for(let i=0;i<7;i++) if(t.includes(DOWN[i])) out.push(i); return out; }
 const taxFor = cur => cur==="KRW"? S.settings.taxKR : S.settings.taxUS;
 const online = () => navigator.onLine !== false;
 const mqWide = window.matchMedia("(min-width:900px)");
@@ -46,7 +51,7 @@ function calc(e){
   const gross = e.perShare * e.shares, tax = gross*(e.taxRate/100), net = gross - tax;
   const fx = e.currency==="KRW" ? 1 : e.fx;
   const y = e.price>0 ? e.perShare/e.price*100 : null;
-  return { gross, tax, net, netKRW: net*fx, grossKRW: gross*fx, yield:y, yieldAnnual: y!=null ? y*freqN(e.ticker) : null };
+  return { gross, tax, net, netKRW: net*fx, grossKRW: gross*fx, yield:y, yieldAnnual: y!=null&&freqN(e.ticker)>0 ? y*freqN(e.ticker) : null };
 }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
 async function fetchJSON(url, opts={}, ms=8000){

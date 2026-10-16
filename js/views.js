@@ -49,6 +49,29 @@ function monthlyCard(){
     <div class="tbl"><table><thead><tr><th class="l">월</th><th>세후</th><th>목표 배당</th><th>달성</th></tr></thead>
     <tbody>${body}<tr class="tot"><td class="l">합계</td><td class="amt">${won(tN)}</td><td>${tGoal?won(tGoal):"-"}</td><td>${tGoal?Math.round(tAct/tGoal*100)+"%":"-"}</td></tr></tbody></table></div></section>`;
 }
+// ---- 이번 주 일정: 월~일 요일별 입금(받은 것 + 예정) ----
+function expectedFor(h){
+  const es=S.entries.filter(e=>e.ticker===h.ticker).sort((a,c)=>c.date.localeCompare(a.date)); if(!es.length) return null;
+  return calc({ticker:h.ticker,perShare:es[0].perShare,shares:h.shares,taxRate:taxFor(h.currency),fx:h.currency==="KRW"?1:S.settings.fx,currency:h.currency,price:0}).netKRW;
+}
+function dayInfo(D){
+  const d=parseD(D), dow=d.getDay(), got=S.entries.filter(e=>e.date===D), recv=got.reduce((a,e)=>a+calc(e).netKRW,0), exp=[];
+  for(const h of S.holdings){ if(!isDivStock(h)||(h.freq||"주배당")!=="주배당") continue; if(!payDaysOf(h).includes(dow)) continue; if(got.some(e=>e.ticker===h.ticker)) continue; exp.push({h,amt:expectedFor(h)}); }
+  return {D,d,dow,got,recv,exp,expAmt:exp.reduce((a,x)=>a+(x.amt||0),0)};
+}
+const tkb=t=>esc(String(t).slice(0,3));
+function weekDaysCard(){
+  const m=monday(new Date()), today=todayStr(), days=Array.from({length:7},(_,i)=>dayInfo(isoOf(new Date(m.getFullYear(),m.getMonth(),m.getDate()+i))));
+  const weekly=S.holdings.filter(h=>isDivStock(h)&&(h.freq||"주배당")==="주배당"), noDay=weekly.filter(h=>!payDaysOf(h).length);
+  const tot=days.reduce((a,x)=>a+x.recv,0), left=days.reduce((a,x)=>a+(x.D>=today?x.expAmt:0),0);
+  const cell=x=>{ const gt=[...new Set(x.got.map(e=>e.ticker))], all=[...gt.map(t=>({t,k:"g"})),...x.exp.map(o=>({t:o.h.ticker,k:"e"}))];
+    const chips=all.slice(0,2).map(c=>`<i class="${c.k}">${tkb(c.t)}</i>`).join("")+(all.length>2?`<i class="m">+${all.length-2}</i>`:"");
+    return `<button class="wd${x.D===today?" today":""}${x.D>today?" fut":""}" data-day="${x.D}" aria-label="${fmtD(x.d)} ${DOWN[x.dow]}요일"><span class="dw">${DOWN[x.dow]}</span><span class="dn">${x.d.getDate()}</span><span class="da${x.recv?" got":""}">${x.recv?kfmt(x.recv):(x.expAmt?"~"+kfmt(x.expAmt):"")}</span><span class="dt">${chips}</span></button>`; };
+  return `<section class="card"><h2>이번 주 일정 <small>${fmtD(days[0].d)} – ${fmtD(days[6].d)}</small></h2>
+    <div class="wdays">${days.map(cell).join("")}</div>
+    <div class="wsum"><span>받은 배당 <b class="num">${won(tot)}</b></span>${left>0?`<span>남은 예정 <b class="num">~${won(left)}</b></span>`:""}</div>
+    ${noDay.length?`<p class="muted" style="font-size:12px;margin:8px 0 0">${noDay.slice(0,3).map(h=>esc(h.ticker)).join(", ")}${noDay.length>3?" 외":""} 종목의 지급 요일을 정하면 입금 예정이 표시돼요 (보유 탭 → 종목).</p>`:""}</section>`;
+}
 function viewHome(){
   const now=new Date(), y=now.getFullYear(), wk=byWeek();
   let ytd=0, total=0;
@@ -65,17 +88,17 @@ function viewHome(){
   <section class="card hero">
     <div class="label">${y}년 받은 배당 (세후)</div>
     <div class="big num">${won(ytd)}</div>
-    <div class="sub">배당 들어온 주 ${cells.filter(c=>c.v>0).length}주 / 52주 · 누적 ${won(total)}</div>
-    <div class="strip">${strip}</div>
-    <div class="strip-legend"><span>1월</span><span>6월</span><span>12월</span></div>
+    <div class="sub">배당 들어온 주 ${cells.filter(c=>c.v>0).length}주 · 누적 ${won(total)}</div>
     ${goalBlock()}
   </section>
+  ${weekDaysCard()}
   <section class="stats">
     <div class="stat"><div class="k">이번 주 (세후)</div><div class="v num">${won(thisWk)}</div><div class="muted" style="font-size:12px">지난주 ${won(lastWk)}</div></div>
     <div class="stat"><div class="k">최근 4주 평균 / 주</div><div class="v num">${won(avg)}</div></div>
     <div class="stat"><div class="k">연 환산 예상</div><div class="v num">${won(avg*52)}</div></div>
     <div class="stat" data-go-rate title="누르면 배당률 그래프로 이동"><div class="k">원금 대비 주배당률</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:12px">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"계획 탭에서 원금을 넣어요"}</div></div>
   </section>
+  <section class="card"><h2>올해 주간 기록 <small>점을 누르면 금액</small></h2><div class="strip">${strip}</div><div class="strip-legend"><span>1월</span><span>6월</span><span>12월</span></div></section>
   ${alertCard()}
   ${weekCalCard()}
   ${monthlyCard()}
@@ -122,7 +145,7 @@ function viewHold(){
     const pl1 = val!=null&&cost? val-cost : null, plp = pl1!=null? pl1/cost*100 : null, own1=cost-d*RP(), totp = pl1!=null&&own1>0? (pl1+d)/own1*100 : null;
     const avgTxt = kr ? (r.aK?won(r.aK):"평단 미입력") : r.aU ? usd(r.aU) : r.aK ? won(r.aK) : "평단 미입력";
     return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
-      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}</div></div>
+      <div class="m"><div class="t">${esc(h.ticker)}</div><div class="s num">${qty(h.shares)}주 · 평단 ${avgTxt}${(h.freq||"주배당")==="주배당"?"":` · ${h.freq==="배당 없음"?"일반 주식":esc(h.freq)}`}</div></div>
       <div class="rt"><div class="t num">${val!=null?won(val):"가격 없음"}</div>${plp!=null?`<div class="s num ${cls(pl1)}">${pct(plp,1)}</div>`:`<div class="s">${p?"":"현재가 필요"}</div>`}${totp!=null&&d>0?`<div class="s num ${cls(totp)}" style="font-weight:500;font-size:12px">배당 포함 ${pct(totp,1)}</div>`:""}</div></div>`;
   }).join("");
   const odd=oddKrw();
