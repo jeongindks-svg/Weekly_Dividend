@@ -70,17 +70,16 @@ function bindView(){
     if(!S.settings.tdKey){ render(); toast("키를 지웠어요"); return; }
     try{ const j=await TD.call("price?symbol=SPY"); toast(j.price?"연결 성공! 주가를 불러올게요":"키를 확인해 주세요"); S.entries.forEach(e=>e.priceFail=false); refreshQuotes(true); backfillPrices(); }
     catch(e){ toast("키가 맞지 않거나 인터넷 연결이 없어요"); } render(); });
-  on("#gLink",()=>{ const idv=$("#sgc").value.trim(); if(!idv){ toast("클라이언트 ID를 먼저 넣어 주세요"); return; }
-    if(idv!==S.settings.gClientId){ S.settings.gClientId=idv; Drive.token=null; Drive.keep(); touchSettings(); saveLocal(); } Drive.sync(true); });
-  on("#gUnlink",()=>{ if(!confirm("구글 연동을 해제할까요? 이 기기의 기록은 그대로 남아요.")) return;
-    try{ if(Drive.token && window.google) google.accounts.oauth2.revoke(Drive.token,()=>{}); }catch(e){}
-    Drive.token=null; Drive.keep(); Drive.fileId=null; S.settings.gLinked=false; saveLocal(); render(); });
+  on("#gLink",()=>{ const u=v.querySelector("#sbu"), k=v.querySelector("#sbk");
+    if(u&&k){ const url=u.value.trim(), key=k.value.trim(), er=!url||!key?"Supabase 주소와 키를 모두 넣어 주세요":Cloud.checkKey(url,key); if(er){ toast(er); return; }
+      const c=Cloud.cfg(); if(!c||c.url!==url.replace(/\/$/,"")||c.key!==key) Cloud.saveCfg(url,key); }
+    Cloud.sync(true); });
+  on("#gUnlink",()=>{ if(!confirm("로그아웃할까요? 이 기기의 기록은 그대로 남아요. 다시 로그인하면 자동 동기화가 이어져요.")) return; Cloud.logout(); });
   const hs=v.querySelector("#hideSeg"); if(hs) hs.onclick=ev=>{ const b=ev.target.closest("button"); if(b) setHide(b.dataset.h==="1"); };
   on("#csv",exportCSV);
-  on("#gShare",async()=>{ const idv=(S.settings.gClientId||$("#sgc").value||"").trim();
-    if(!idv){ toast("클라이언트 ID를 먼저 넣어 주세요"); return; }
+  on("#gShare",async()=>{ const c=Cloud.cfg(); if(!c){ toast("Supabase 주소와 키를 먼저 넣어 주세요"); return; }
     if(!/^https?:/.test(location.protocol)){ toast("웹 주소(https)로 열었을 때 만들 수 있어요"); return; }
-    const url=location.origin+location.pathname+"#jb-client="+encodeURIComponent(idv);
+    const url=location.origin+location.pathname+"#jb-sb="+encodeURIComponent(btoa(JSON.stringify({u:c.url,k:c.key})));
     try{ await navigator.clipboard.writeText(url); toast("링크를 복사했어요. 다른 기기에서 열어 주세요"); }
     catch(e){ prompt("이 링크를 다른 기기에서 열어 주세요", url); } });
   v.querySelectorAll("[data-go-rate]").forEach(el=>el.onclick=()=>{ tab="chart"; chartMode="rate"; render(); window.scrollTo(0,0); });
@@ -94,15 +93,15 @@ function bindView(){
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; render(); window.scrollTo(0,0); if(tab==="hold") refreshQuotes(false); });
 $("#fab").onclick=()=>batchSheet();
-$("#syncChip").onclick=()=>{ if(S.settings.gLinked||S.settings.gClientId) Drive.sync(true); else { tab="set"; render(); toast("설정에서 구글 계정을 연결할 수 있어요"); } };
+$("#syncChip").onclick=()=>{ if(Cloud.configured()) Cloud.sync(true); else { tab="set"; render(); toast("설정에서 Supabase 주소와 키를 넣으면 구글 로그인으로 동기화할 수 있어요"); } };
 
 // ---------- start ----------
 async function backgroundWork(){ await refreshTodayFx(); await backfillFx(); await refreshQuotes(false); await backfillPrices(); }
-// 다른 기기에서 복사한 연결 링크(#jb-client=...)로 열었을 때 클라이언트 ID를 자동으로 넣어요
+// 다른 기기에서 복사한 연결 링크(#jb-sb=...)로 열었을 때 Supabase 주소·키를 자동으로 넣어요
 function applySetupLink(){
-  try{ const m=location.hash.match(/jb-client=([^&]+)/); if(!m) return false;
-    const id=decodeURIComponent(m[1]).trim(); history.replaceState(null,"",location.pathname+location.search);
-    if(/^[\w.\-]+\.apps\.googleusercontent\.com$/.test(id)){ S.settings.gClientId=id; saveLocal(); tab="set"; return true; }
+  try{ const m=location.hash.match(/jb-sb=([^&]+)/); if(!m) return false;
+    const o=JSON.parse(atob(decodeURIComponent(m[1]))); history.replaceState(null,"",location.pathname+location.search);
+    if(o&&o.u&&o.k&&!Cloud.checkKey(o.u,o.k)){ Cloud.saveCfg(o.u,o.k); tab="set"; return true; }
   }catch(e){}
   return false;
 }
@@ -111,17 +110,15 @@ try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(
 // 이 기기의 저장 내용이 비어 있는데 이중 보관본에 기록이 남아 있으면 되살려요
 if(!hasData(S)) IDB.get().then(v=>{ try{ if(!v||hasData(S)) return; const o=JSON.parse(v); if(!hasData(o)) return;
   const k=S.settings.tdKey; S=normalize(o); S.settings.tdKey=k||""; saveLocal(); render(); toast("이 기기에 남아 있던 백업에서 기록을 되살렸어요"); }catch(e){} });
-Drive.restore();
 const fromLink=applySetupLink();
 render();
-if(fromLink) toast("연결 정보를 넣었어요. ‘구글 계정 연결’을 눌러 로그인해 주세요");
+if(fromLink) toast("연결 정보를 넣었어요. ‘구글로 로그인’을 눌러 주세요");
 backgroundWork();
 (mqWide.addEventListener ? mqWide.addEventListener("change",()=>render()) : mqWide.addListener(()=>render()));
-Drive.startAuto();
-if(Drive.linked()){ Drive.loadGIS().catch(()=>{}); Drive.sync(false); }
-window.addEventListener("online", ()=>{ backgroundWork(); if(Drive.linked()) Drive.sync(false); });
-document.addEventListener("pointerdown",()=>{ if(Drive.linked()&&!Drive.ready()) Drive.trySilent(true); },true);
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(Drive.linked()&&!Drive.ready()) Drive.trySilent(false); if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Drive.linked()&&Date.now()-Drive.lastSync>2*60000) Drive.sync(false); } });
+Cloud.startAuto();
+if(Cloud.configured()){ Cloud.init().then(()=>Cloud.sync(false)); } else Cloud.setChip();
+window.addEventListener("online", ()=>{ backgroundWork(); if(Cloud.linked()) Cloud.sync(false); });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(S.settings.fxDate!==todayStr()) refreshTodayFx(); if(Cloud.linked()&&Date.now()-Cloud.lastSync>2*60000) Cloud.sync(false); } });
 
 // ---------- 서비스 워커 (오프라인·빠른 업데이트) ----------
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){

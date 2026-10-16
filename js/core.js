@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="6.1", APP_DATE="2026-10-16", APP_NOTES="구글 로그인돼 있으면 자동으로 다시 연결해 동기화";
+const APP_VERSION="7.0", APP_DATE="2026-10-16", APP_NOTES="Supabase 구글 로그인 자동 동기화 (한 번 로그인하면 계속 유지)";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
@@ -97,7 +97,7 @@ function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); if(r){ try{ S=n
   else if(S.settings.tdKey && S.settings.tdKey!==k) saveLocal(); }catch(e){} }
 function saveLocal(){ try{ if(S.settings.tdKey) localStorage.setItem(TD_KEY,S.settings.tdKey); else localStorage.removeItem(TD_KEY);
   const j=exportJSON(); localStorage.setItem(LS_KEY, j); IDB.put(j); }catch(e){} }
-function persist(){ saveLocal(); Drive.schedulePush(); }
+function persist(){ saveLocal(); Cloud.schedulePush(); }
 function touchSettings(){ S.settings.updated = Date.now(); }
 
 // ---------- exchange rate (자동) ----------
