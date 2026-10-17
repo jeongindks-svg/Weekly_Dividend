@@ -48,22 +48,36 @@ function journalDetailSheet(key){
       $("#sheet").querySelectorAll("[data-hold]").forEach(r=>r.onclick=()=>holdSheet(r.dataset.hold));
       $("#sheet").querySelectorAll("[data-trade]").forEach(r=>r.onclick=()=>tradeSheet(r.dataset.trade)); });
 }
+const monthShort=k=>{ const [y,m]=k.split("-"); return `${+m}월`+(+y!==new Date().getFullYear()?` (${y.slice(2)})`:""); };
 function viewTrades(){
   const items=journalItems();
-  if(!items.length) return emptyCard("TRADE JOURNAL","언제, 왜 샀는지<br>기록해 보세요","매수 기록과 사유 메모를 남기면 내 판단을 돌아볼 수 있고, 매도를 기록하면 실현손익이 자동으로 계산돼요.",`<button class="primary bigbtn" id="addBuy">+ 매수 기록</button>`,SAMPLE_ROWS);
-  const R=realizedSum(), list=items.filter(x=>jFilter==="all"||x.k===jFilter), nb=items.filter(x=>x.k==="buy").length;
-  const seg=`<div class="jctl"><div class="seg" id="jview">${[["month","월별"],["day","일별"]].map(([k,l])=>`<button data-v="${k}" aria-pressed="${jView===k}">${l}</button>`).join("")}</div><div class="seg" id="jseg">${[["all","전체"],["buy","매수"],["sell","매도"]].map(([k,l])=>`<button data-f="${k}" aria-pressed="${jFilter===k}">${l}</button>`).join("")}</div></div>`;
-  const DW="일월화수목금토", dayBlock=rows=>groupDay(rows).map(([d,rs])=>`<div class="dayh">${fmtD(parseD(d))} (${DW[parseD(d).getDay()]})</div>${rs.map(journalRow).join("")}`).join("");
-  return `<section class="stats3"><div><div class="k">누적 실현손익</div><div class="v num ${cls(R.all)}">${R.n?wonS(R.all):"-"}</div></div>
-    <div><div class="k">올해 실현손익</div><div class="v num ${cls(R.yr)}">${R.n?wonS(R.yr):"-"}</div></div>
-    <div><div class="k">매수 · 매도</div><div class="v num">${nb} · ${R.n}건</div>${R.n?`<div class="muted" style="font-size:11.5px">이익 ${R.win}건</div>`:""}</div></section>
-    <div class="btnrow full" style="margin:0 0 12px"><button id="addBuy">+ 매수 기록</button><button class="primary" id="addSell">+ 매도 기록</button></div>
-    ${seg}
-    ${list.length?groupYm(list,x=>x.date).map(([k,rows])=>{ const bk=rows.filter(x=>x.k==="buy").reduce((a,x)=>a+x.krw,0), sk=rows.filter(x=>x.k==="sell").reduce((a,x)=>a+x.krw,0), real=rows.reduce((a,x)=>a+(x.k==="sell"?x.real:0),0), hasS=rows.some(x=>x.k==="sell");
-      return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)} <small>${bk?`매수 ${won(bk)}`:""}${bk&&sk?" · ":""}${sk?`매도 ${won(sk)}`:""}</small></h2>${jView==="day"?dayBlock(rows):tickerRows(rows).map(o=>monthRow(k,o)).join("")}${hasS?`<div class="lrow"><div class="s">실현손익</div><div class="r"><b class="num ${cls(real)}">${wonS(real)}</b></div></div>`:""}</section>`; }).join(""):`<section class="card"><div class="empty">해당하는 기록이 없어요</div></section>`}
-    <p class="muted full" style="font-size:12px;margin:0 2px 12px">월별은 한 달 안에서 종목별로 묶어 보여주고(종목을 누르면 날짜별 내역), 일별은 거래 하나하나를 날짜순으로 보여줘요. 매도하면 보유 수량이 줄고, 평균 매수 단가(평균단가법) 기준으로 실현손익을 계산해요. 실현손익은 수수료·세금을 뺀 값이에요.</p>`;
+  if(!items.length) return emptyCard("TRADE JOURNAL","언제, 얼마나 샀는지<br>기록해 보세요","매수는 종목 편집의 매수 기록에서, 매도는 여기서 기록해요. 매도하면 실현손익이 자동 계산돼요.",`<button class="primary bigbtn" id="addBuy">+ 매수 기록</button>`,SAMPLE_ROWS);
+  const R=realizedSum(), now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth());
+  const sum=R.n?`<div class="jsum"><span>누적 실현손익 <b class="num ${cls(R.all)}">${wonS(R.all)}</b></span><span>올해 <b class="num ${cls(R.yr)}">${wonS(R.yr)}</b></span></div>`:"";
+  const btns=`<div class="btnrow jbtn"><button id="addBuy">+ 매수</button><button class="primary" id="addSell">+ 매도</button></div>`;
+  const view=`<div class="seg" id="jview">${[["month","월별"],["day","일별"]].map(([k,l])=>`<button data-v="${k}" aria-pressed="${jView===k}">${l}</button>`).join("")}</div>`;
+  if(jView==="day"){
+    const list=items.filter(x=>jFilter==="all"||x.k===jFilter), DW="일월화수목금토";
+    const flt=`<div class="seg" id="jseg">${[["all","전체"],["buy","매수"],["sell","매도"]].map(([k,l])=>`<button data-f="${k}" aria-pressed="${jFilter===k}">${l}</button>`).join("")}</div>`;
+    return `<div class="jctl">${view}${flt}</div>${sum}${btns}
+      ${list.length?groupYm(list,x=>x.date).map(([k,rows])=>`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)}</h2>${groupDay(rows).map(([d,rs])=>`<div class="dayh">${fmtD(parseD(d))} (${DW[parseD(d).getDay()]})</div>${rs.map(journalRow).join("")}`).join("")}</section>`).join(""):`<section class="card"><div class="empty">해당하는 기록이 없어요</div></section>`}`;
+  }
+  // 월별: 이번 달은 종목별로 자세히, 지난달은 통계표(월 · 매수 · 매도 · 비중)
+  const months=groupYm(items,x=>x.date), stat=rows=>({bk:rows.filter(x=>x.k==="buy").reduce((a,x)=>a+x.krw,0),sk:rows.filter(x=>x.k==="sell").reduce((a,x)=>a+x.krw,0),real:rows.reduce((a,x)=>a+(x.k==="sell"?x.real:0),0)});
+  const cur=months.find(([k])=>k===curYm), past=months.filter(([k])=>k!==curYm);
+  const totB=months.reduce((a,[,r])=>a+stat(r).bk,0)||1;
+  const curCard=cur?(()=>{ const s=stat(cur[1]); return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">이번 달 <small>${s.bk?`매수 ${won(s.bk)}`:""}${s.bk&&s.sk?" · ":""}${s.sk?`매도 ${won(s.sk)}`:""}</small></h2>${tickerRows(cur[1]).map(o=>monthRow(curYm,o)).join("")}</section>`; })():"";
+  const tbl=past.length?`<section class="card" style="padding:14px 6px 6px"><h2 style="padding:0 12px">월별 통계 <small>매수 금액 기준 비중</small></h2><div class="tbl jtbl"><table><thead><tr><th class="l">월</th><th>매수</th><th>매도</th><th>비중</th></tr></thead><tbody>${past.map(([k,rows])=>{ const s=stat(rows), p=s.bk/totB*100;
+    return `<tr data-jmonth="${k}"><td class="l"><b>${monthShort(k)}</b>${s.sk?`<div class="s ${cls(s.real)}">실현 ${wonS(s.real)}</div>`:""}</td><td>${s.bk?won(s.bk):"-"}</td><td>${s.sk?won(s.sk):"-"}</td><td class="shc"><span class="shr"><i style="width:${Math.min(100,p).toFixed(0)}%"></i></span><small>${p.toFixed(0)}%</small></td></tr>`; }).join("")}</tbody></table></div></section>`:"";
+  return `<div class="jctl">${view}</div>${sum}${btns}${curCard}${tbl}
+    <p class="muted full" style="font-size:12px;margin:0 2px 12px">달을 누르면 종목별 내역이 열려요. 매도하면 평균 매수 단가 기준으로 실현손익을 계산해요(수수료·세금 제외).</p>`;
 }
-
+function journalMonthSheet(ym){
+  const rows=journalItems().filter(x=>x.date.startsWith(ym));
+  openSheet(`<h3>${ymTitle(ym)}</h3><p class="hint">종목을 누르면 날짜별 내역이 보여요.</p>${tickerRows(rows).map(o=>monthRow(ym,o)).join("")||`<div class="empty">내역이 없어요</div>`}
+    <div class="btnrow" style="margin-top:12px"><button id="jmx">닫기</button></div>`,()=>{ $("#jmx").onclick=closeSheet;
+      $("#sheet").querySelectorAll("[data-jm]").forEach(r=>r.onclick=()=>journalDetailSheet(r.dataset.jm)); });
+}
 function buyPick(){
   const hs=liveHoldings();
   if(!hs.length){ holdSheet(); return; }

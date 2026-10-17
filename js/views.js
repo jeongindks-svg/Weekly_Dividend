@@ -89,16 +89,10 @@ function viewHome(){
   <section class="card hero">
     <div class="label">${y}년 받은 배당 (세후)</div>
     <div class="big num">${won(ytd)}</div>
-    ${weekFlow()}
+    ${weekFlow(false)}
     ${goalBlock()}
   </section>
-  <section class="stats3">
-    <div><div class="k">최근 4주 평균</div><div class="v num">${won(avg)}</div><div class="muted" style="font-size:11.5px">1주 기준</div></div>
-    <div><div class="k">연 환산</div><div class="v num">${won(avg*52)}</div><div class="muted" style="font-size:11.5px">평균 × 52</div></div>
-    <div data-go-rate role="button" style="cursor:pointer"><div class="k">원금 대비 ›</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:11.5px">주배당률</div></div>
-  </section>
-  ${weekDaysCard()}
-  ${alertCard()}`;
+  ${weekDaysCard()}`;
 }
 
 function viewLog(){
@@ -164,7 +158,7 @@ function tickerDetail(t){
 function viewChart(modeOverride,noSeg){
   let mode=modeOverride||chartMode; if(!noSeg&&!["asset","mix"].includes(mode)) mode=chartMode="asset";
   const now=new Date(), y=now.getFullYear(), b=basis();
-  const seg=noSeg?"":topCard()+`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["mix","비중"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${mode===k}">${l}</button>`).join("")}</div>`;
+  const seg=noSeg?"":`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["mix","비중"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${mode===k}">${l}</button>`).join("")}</div>`;
   if(mode==="ticker"){
     const ts=[...new Set(S.entries.map(e=>e.ticker))].sort();
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
@@ -174,7 +168,7 @@ function viewChart(modeOverride,noSeg){
         <p class="muted" style="margin:0 2px 12px">위에서 종목을 고르면 그 종목만 날짜별로 볼 수 있어요.</p>`; }
     return seg+chips+tickerDetail(tickerSel);
   }
-  if(mode==="asset") return seg+assetView();
+  if(mode==="asset") return seg+assetView()+assetSide();
   if(mode==="mix") return seg+mixView();
   if(mode==="rate") return seg+rateView();
   const months=new Array(12).fill(0).map((_,i)=>actualYm(ymOf(y,i),b)), goals=months.map((_,i)=>goalFor(y,i)), hasGoal=goals.some(g=>g>0);
@@ -292,6 +286,12 @@ function assetView(){
     </svg>${tabs}
     <p class="note">매수 기록과 배당 입금일의 주가로 이은 추정선이에요. 총 수익 = 평가손익 + 받은 배당.</p></section>`;
 }
+// 자산 그래프 옆: 종목별 수익 (넓은 화면의 빈 공간도 채워요)
+function assetSide(){
+  const rows=portRows().filter(r=>r.plp!=null).sort((a,b)=>b.plp-a.plp); if(rows.length<1) return "";
+  const mx=Math.max(...rows.map(r=>Math.abs(r.plp)),1);
+  return `<section class="card sidecard"><h2>종목별 수익 <small>평가손익 기준</small></h2>${rows.slice(0,10).map(r=>`<div class="lrow"><div class="t" style="min-width:64px">${esc(r.h.ticker)}</div><div class="bw"><i class="${r.plp>=0?"p":"n"}" style="width:${(Math.abs(r.plp)/mx*100).toFixed(0)}%"></i></div><div class="r"><div class="p num ${cls(r.plp)}" style="font-size:15px">${pct(r.plp,1)}</div><div class="s num">${wonS(r.pl)}</div></div></div>`).join("")}</section>`;
+}
 function assetHead(p,isNow){
   const pl=p.val-p.cost, tot=pl+p.div, tp=p.cost>0?tot/p.cost*100:0, dt=parseD(p.D);
   return `<div class="ad">${isNow?"지금":(dt.getMonth()+1)+"월 "+dt.getDate()+"일"}</div><div class="av2 num">${won(p.val)}</div>
@@ -392,7 +392,7 @@ const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"cha
 function render(){
   const v=$("#view");
   v.className = "tab-"+tab+(tab==="log"?(logMode==="table"?" one":" one list"):"");
-  v.innerHTML = tab==="home"?viewHome():tab==="log"?topCard()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?topCard()+divSeg("plan")+viewPlan():viewSet();
+  v.innerHTML = tab==="home"?viewHome():tab==="log"?divHead()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?divHead()+divSeg("plan")+viewPlan():viewSet();
   const nv=NAVOF[tab]||tab;
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
   $("#fab").hidden = !(tab==="home"||tab==="div"||tab==="log");

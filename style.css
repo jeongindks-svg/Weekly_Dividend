@@ -627,3 +627,25 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
   #view > .hctl{max-width:760px;grid-template-columns:2fr 1fr 1fr}
   #view > .hctl input{grid-column:auto}
 }
+
+/* v9: 심플 리뉴얼 */
+.jsum{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 2px 12px}
+.jsum b{font-size:15px;margin-left:4px}
+.jbtn{margin:0 0 12px}.jbtn button{padding:10px 14px}
+.jtbl tbody tr{cursor:pointer}
+.jtbl td .s{font-size:11.5px;font-weight:600}
+.jtbl th,.jtbl td{padding:12px 12px}
+.shc{white-space:nowrap}
+.shr{display:inline-block;width:44px;height:6px;border-radius:3px;background:var(--cell0);vertical-align:middle;margin-right:6px;overflow:hidden}
+.shr i{display:block;height:100%;background:var(--blue);border-radius:3px}
+.shc small{color:var(--muted);font-size:11.5px}
+.bw{flex:1;height:6px;border-radius:3px;background:var(--cell0);margin:0 12px;overflow:hidden}
+.bw i{display:block;height:100%;border-radius:3px}.bw i.p{background:var(--red)}.bw i.n{background:var(--blue)}
+.sidecard .lrow{gap:0}
+@media (min-width:900px){
+  #view > .assetcard{grid-column:auto;max-width:none;padding:22px 24px 18px}
+  .assetcard .av2{font-size:32px}
+}
+@media (min-width:900px){
+  #view.tab-home > .topcard:not(.cp){grid-row:span 2}
+}
