@@ -569,3 +569,19 @@ header.top h1{display:flex;flex-direction:column;gap:0}
 header.top h1 .app{display:block;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0;line-height:1.3}
 header.top h1 .pg{display:block;font-size:32px;font-weight:800;letter-spacing:-.04em;line-height:1.1}
 @media (min-width:900px){ header.top h1 .app{display:none} header.top h1 .pg{font-size:28px} }
+
+/* v8.1: 돈 요약(투자원금·평가손익·받은 배당) 통일 · 군더더기 줄이기 */
+.mrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
+.mrow .k{font-size:11.5px;color:var(--muted)}
+.mrow .v{font-size:15.5px;font-weight:700;letter-spacing:-.02em;margin-top:1px;white-space:nowrap}
+.mrow .s{font-size:11.5px;font-weight:600}
+.mrow+.mrow{border-top:none}
+section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:var(--shadow);padding:14px 16px;margin:0 0 12px;border-top:none}
+.topcard .tl .info{background:transparent;color:var(--muted);box-shadow:none;padding:0 2px;font-size:13px;font-weight:400;border-radius:50%;margin-left:2px;letter-spacing:0}
+.topcard .td span{color:var(--muted)}
+.adim2{font-size:12.5px;color:#9aa0ac;margin-top:2px}
+.assetcard .lg{justify-content:flex-start}
+.wfh{align-items:center}.wfh .k{font-size:13px;color:var(--muted)}
+.wfv{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-left:4px}
+.hero .rchips{margin-top:8px}
+.hero .goalbar{margin-top:12px}

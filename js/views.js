@@ -84,21 +84,19 @@ function viewHome(){
   const labels=[], vals=[], tg=[], m0=monday(now), firstK=wk.size?[...wk.keys()].sort()[0]:isoOf(m0);
   for(let k=firstK; k<=isoOf(m0); k=addDays(k,7)){ labels.push(fmtD(parseD(k))); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
   const hasGoal=tg.some(t=>t>0);
-  const dl=thisWk>0&&lastWk>0?(thisWk-lastWk)/lastWk*100:null;
   return `
   ${topCard(true)}
   <section class="card hero">
     <div class="label">${y}년 받은 배당 (세후)</div>
     <div class="big num">${won(ytd)}</div>
-    <div class="sub">배당 들어온 주 ${cells.filter(c=>c.v>0).length}주 · 누적 ${won(total)}</div>
     ${weekFlow()}
     ${goalBlock()}
   </section>
   ${weekDaysCard()}
-  <section class="card list">
-    <div class="lrow"><div><div class="t">최근 4주 평균 / 주</div><div class="s">세후 · 이번 주 제외한 흐름</div></div><div class="r"><div class="p num">${won(avg)}</div></div></div>
-    <div class="lrow"><div><div class="t">연 환산 예상</div><div class="s">최근 4주 평균 × 52</div></div><div class="r"><div class="p num">${won(avg*52)}</div></div></div>
-    <div class="lrow tap" data-go-rate><div><div class="t">원금 대비 주배당률</div><div class="s">${rr.rate!=null?`최근 4주 · ${basisName()} · 원금 ${man(rr.pr)}만`:"종목 평단·수량을 넣으면 계산돼요"}</div></div><div class="r"><div class="p num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"} <span class="chev">›</span></div></div></div>
+  <section class="stats3">
+    <div><div class="k">최근 4주 평균</div><div class="v num">${won(avg)}</div><div class="muted" style="font-size:11.5px">1주 기준</div></div>
+    <div><div class="k">연 환산</div><div class="v num">${won(avg*52)}</div><div class="muted" style="font-size:11.5px">평균 × 52</div></div>
+    <div data-go-rate role="button" style="cursor:pointer"><div class="k">원금 대비 ›</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:11.5px">주배당률</div></div>
   </section>
   ${alertCard()}`;
 }
@@ -264,8 +262,7 @@ let assetRange = "year", assetDiv = true, ASSET=null, planMode = "plan";
 function assetView(){
   if(!S.holdings.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">보유 탭에 종목과 매수 기록을 넣으면 내 투자 자산 그래프를 볼 수 있어요.</div></section>`;
   const R=[["year","올해"],["month","이달"],["1m","1달"],["6m","6달"],["1y","1년"],["all","전체"]];
-  const d=assetData(assetRange), pts=d.pts; // 재투자한 배당은 매수 기록으로 이미 평가금액에 들어 있어요. 그래서 ‘배당 포함’은 재투자하지 않은 몫만 더하고, 재투자한 몫은 원금(내가 넣은 돈)에서 빼서 한 번만 반영해요.
-  const rpv=RP(); pts.forEach(p=>{ p.cost0=p.cost; if(assetDiv){ p.tot=p.val+p.div*(1-rpv); p.cost=Math.max(0,p.cost0-p.div*rpv); } else p.tot=p.val; });
+  const d=assetData(assetRange), pts=d.pts; pts.forEach(p=>{ p.tot=p.val; });
   const tabs=`<div class="rtabs" id="artabs">${R.map(([k,l])=>`<button data-r="${k}" aria-pressed="${assetRange===k}">${l}</button>`).join("")}</div>`;
   if(!pts.length) return `<section class="assetcard"><div class="empty" style="color:#9aa0ac">이 기간에는 보유 기록이 없어요.<br>매수 기록이 있는 기간을 골라 보세요.</div>${tabs}</section>`;
   const big=window.innerWidth>=700, k=big?1.25:1, W=big?720:400,H=big?300:290,pl=8,pr=big?84:58,pt=14,pb=big?32:26, t0=parseD(d.from).getTime(), t1=parseD(d.axisEnd).getTime();
@@ -284,7 +281,7 @@ function assetView(){
   ASSET={pts,X,Y,W,H,pl,pr,pt,pb};
   const last=pts[pts.length-1];
   return `<section class="assetcard full">
-    <div class="lg"><span><i style="background:#ff6584"></i>자산${assetDiv?" (배당 포함)":""}</span><span><i style="background:#6b7384"></i>${assetDiv?"내가 넣은 돈":"원금"}</span><button class="achip" id="adiv" aria-pressed="${assetDiv}">배당 포함</button></div>
+    <div class="lg"><span><i style="background:#ff6584"></i>평가금액</span><span><i style="background:#6b7384"></i>투자원금</span></div>
     <div id="aHead" class="ahead">${assetHead(last,true)}</div>
     <svg id="assetsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="내 투자 자산 그래프" style="touch-action:pan-y">
       <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8597" stop-opacity=".32"/><stop offset="1" stop-color="#7d8597" stop-opacity="0"/></linearGradient>
@@ -298,12 +295,13 @@ function assetView(){
       <text x="${W-2}" y="${H-pb-3}" font-size="${12.5*k}" text-anchor="end" fill="#b3b8c4">${mfmt(lo)}</text>
       ${xl}
     </svg>${tabs}
-    <p class="note">자산은 매수 기록과 배당 입금일의 주가로 이은 추정선이에요. 원금은 그날까지 산 금액이에요. ‘배당 포함’은 그날까지 받은 배당(세후)을 반영해요. 재투자한 배당(설정의 재투자 비율)은 이미 매수 기록으로 평가금액에 들어 있어서 다시 더하지 않고, 대신 ‘내가 넣은 돈’에서 빼요. 그래서 손익은 같고 총자산만 이중으로 부풀지 않아요.</p></section>`;
+    <p class="note">매수 기록과 배당 입금일의 주가로 이은 추정선이에요. 총 수익 = 평가손익 + 받은 배당.</p></section>`;
 }
 function assetHead(p,isNow){
-  const gain=p.tot-p.cost, pc=p.cost>0?gain/p.cost*100:0, dt=parseD(p.D);
-  return `<div class="ad">${isNow?"지금":(dt.getMonth()+1)+"월 "+dt.getDate()+"일"}</div><div class="av2 num">${won(p.tot)}</div>
-    <div class="num ${gain>=0?"upd":"dnd"}">${wonS(gain)} (${pct(pc,1)}) <span class="adim">${assetDiv&&p.div>0?"내가 넣은 돈":"원금"} ${won(p.cost)}${assetDiv&&p.div>0?` · 받은 배당 ${won(p.div)} 반영`:""}</span></div>`;
+  const pl=p.val-p.cost, tot=pl+p.div, tp=p.cost>0?tot/p.cost*100:0, dt=parseD(p.D);
+  return `<div class="ad">${isNow?"지금":(dt.getMonth()+1)+"월 "+dt.getDate()+"일"}</div><div class="av2 num">${won(p.val)}</div>
+    <div class="num ${tot>=0?"upd":"dnd"}">총 수익 ${wonS(tot)} (${pct(tp,1)})</div>
+    <div class="adim2 num">투자원금 ${won(p.cost)} · 평가손익 ${wonS(pl)} · 받은 배당 ${won(p.div)}</div>`;
 }
 function viewPlan(){
   const now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth()), b=basis(), inv=investMap();
