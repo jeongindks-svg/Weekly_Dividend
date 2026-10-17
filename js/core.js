@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="8.1", APP_DATE="2026-10-16", APP_NOTES="돈 계산 기준 통일(투자원금·평가손익·받은 배당·총 수익), 홈 정리";
+const APP_VERSION="8.2", APP_DATE="2026-10-16", APP_NOTES="포트폴리오 간소화, 배당(받는 돈)·분석(내 자산) 역할 분리";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

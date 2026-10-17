@@ -132,54 +132,41 @@ function viewHold(){
   if(holdMode==="trade") return banner+topCard()+holdSeg("trade")+viewTrades();
   if(holdMode==="cash") return banner+topCard()+holdSeg("cash")+viewCash();
   if(!liveHoldings().length) return banner+topCard()+holdSeg("list")+emptyCard("GET STARTED","배당 포트폴리오를<br>시작해보세요","첫 종목을 추가하면 평가손익·배당·재투자 분석이 자동으로 시작돼요.",`<button class="primary bigbtn" id="addHold2">+ 첫 종목 추가</button>`,SAMPLE_ROWS+`<ol class="steps"><li>종목명 또는 종목코드로 추가</li><li>수량·평단·계좌(일반/ISA/연금) 입력</li><li>매주 주당 배당만 기록하면 분석 시작</li></ol>`);
-  let rows=portRows(); const tot=rows.reduce((a,r)=>a+r.v,0)||1, P=portfolio();
-  const accs=[...new Set(rows.map(r=>r.account))]; if(holdFilter!=="all"&&!accs.includes(holdFilter)) holdFilter="all";
-  const hqs=holdQ.trim().toLowerCase(), view=rows.filter(r=>(holdFilter==="all"||r.account===holdFilter)&&(!hqs||r.h.ticker.toLowerCase().includes(hqs)));
+  const rows=portRows(), tot=rows.reduce((a,r)=>a+r.v,0)||1, P=portfolio(), many=rows.length>=6;
+  const hqs=holdQ.trim().toLowerCase(), view=rows.filter(r=>!hqs||r.h.ticker.toLowerCase().includes(hqs));
   const key={weight:r=>r.weight,plp:r=>r.plp,yld:r=>r.yld,v:r=>r.v}[holdSort];
   view.sort((a,b)=>(key(b)??-1e18)-(key(a)??-1e18));
-  const sortSeg=`<div class="seg" id="hsort" style="margin:0 0 10px">${[["weight","비중"],["plp","수익률"],["yld","배당률"],["v","평가금"]].map(([k,l])=>`<button data-s="${k}" aria-pressed="${holdSort===k}">${l}</button>`).join("")}</div>`;
-  const many=rows.length>=6;
-  const ctl=`<div class="hctl">${many?`<input id="hq" type="search" value="${esc(holdQ)}" placeholder="종목 검색" autocomplete="off" aria-label="종목 검색">`:""}<select id="hgrp" aria-label="묶어 보기"><option value="none">묶지 않기</option>${[["account","계좌별"],["freq","배당 주기별"],["type","유형별"]].map(([k,l])=>`<option value="${k}" ${holdGroup===k?"selected":""}>${l}</option>`).join("")}</select><button type="button" id="hcmp" aria-pressed="${holdCompact}">한 줄 보기</button></div>`;
-  const filt=accs.length>1?`<div class="chips" id="hfilter">${["all",...accs].map(a=>`<button data-a="${esc(a)}" aria-pressed="${holdFilter===a}">${a==="all"?"전체":esc(a)}</button>`).join("")}</div>`:"";
-  const divTot=rows.reduce((a,r)=>a+r.da,0), yAll=tot>0&&divTot>0?divTot/tot*100:null;
-  const cdims=[["region","지역",r=>r.region],["freq","주기",r=>r.freq],["type","유형",r=>r.type]], cd=cdims.find(x=>x[0]===holdComp)||cdims[0];
-  const comp=`<section class="card"><h2>자산 구성 <small>평가금액 기준</small></h2><div class="seg" id="compseg" style="margin-bottom:12px">${cdims.map(([k,l])=>`<button data-m="${k}" aria-pressed="${cd[0]===k}">${l}</button>`).join("")}</div>${bars(tally(rows,cd[2]),tot)}</section>`;
+  const ctl=many?`<div class="hctl"><input id="hq" type="search" value="${esc(holdQ)}" placeholder="종목 검색" autocomplete="off" aria-label="종목 검색"><select id="hsortsel" aria-label="정렬">${[["weight","비중순"],["plp","수익률순"],["yld","배당률순"],["v","평가금순"]].map(([k,l])=>`<option value="${k}" ${holdSort===k?"selected":""}>${l}</option>`).join("")}</select><select id="hgrp" aria-label="묶어 보기"><option value="none">묶지 않기</option>${[["account","계좌별"],["freq","주기별"],["type","유형별"]].map(([k,l])=>`<option value="${k}" ${holdGroup===k?"selected":""}>${l}</option>`).join("")}</select></div>`:"";
+  // 종목 비중을 한 줄 막대로 (자세한 분석은 분석 탭)
+  const tc=top5(tally(rows,r=>r.h.ticker)), colr=i=>`hsl(224,${58-i*5}%,${46+i*7}%)`;
+  const comp=`<section class="card cmp" data-gomix role="button"><div class="cmph"><b>종목 비중</b><span>분석에서 자세히 ›</span></div><div class="stk">${tc.map(([k,v],i)=>`<i style="width:${(v/tot*100).toFixed(2)}%;background:${colr(i)}" title="${esc(k)}"></i>`).join("")}</div><div class="stl">${tc.slice(0,4).map(([k,v],i)=>`<span><i style="background:${colr(i)}"></i>${esc(String(k).slice(0,8))} ${(v/tot*100).toFixed(0)}%</span>`).join("")}</div></section>`;
   const avgTxt=r=>{ const h=r.h, c=r.r; return h.currency==="KRW"?(c.aK?won(c.aK):"-"):(c.aU?`${won(c.aK||c.aU*S.settings.fx)}<small>${usd(c.aU)}</small>`:"-"); };
   const priceTxt=r=>{ const h=r.h; return r.r.p?(h.currency==="KRW"?won(r.r.p):`${won(r.r.p*S.settings.fx)}<small>${usd(r.r.p)}</small>`):"-"; };
   const gfn={none:null,account:r=>r.account,freq:r=>r.freq==="배당 없음"?"일반 주식":r.freq,type:r=>r.type}[holdGroup];
   const groups=gfn?[...view.reduce((m,r)=>{ const k=gfn(r); if(!m.has(k)) m.set(k,[]); m.get(k).push(r); return m; },new Map())].sort((x,y)=>y[1].reduce((a,r)=>a+r.v,0)-x[1].reduce((a,r)=>a+r.v,0)):[["",view]];
   const gsum=rs=>{ const v=rs.reduce((a,r)=>a+r.v,0), c=rs.reduce((a,r)=>a+(r.r.val!=null?r.r.cost:0),0), pl=rs.reduce((a,r)=>a+(r.pl||0),0); return {v,w:v/tot*100,pp:c>0?pl/c*100:null}; };
-  const ghd=(k,rs,cols)=>{ const g=gsum(rs), shut=holdShut.has(k); return {shut,html:`<div class="ghd" data-gt="${esc(k)}" role="button" aria-expanded="${!shut}"><b>${shut?"▸":"▾"} ${esc(k)}</b><span class="num">${rs.length}종목 · ${won(g.v)} · 비중 ${g.w.toFixed(0)}%${g.pp!=null?` · <i class="${cls(g.pp)}" style="font-style:normal">${pct(g.pp,1)}</i>`:""}</span></div>`}; };
-  const rowM=r=>{ const h=r.h;
-    if(holdCompact) return `<div class="hl cp" data-hold="${h.id}"><div class="m"><div class="t">${esc(h.ticker)}<span class="ftag">${r.freq==="배당 없음"?"일반":r.freq.replace("배당","")}</span></div></div><div class="cw num">${r.weight.toFixed(1)}%</div><div class="rt"><div class="t num">${won(r.v)}</div><div class="s num ${cls(r.pl||0)}">${r.plp!=null?pct(r.plp,1):"-"}</div></div></div>`;
-    return `<div class="hl" data-hold="${h.id}"><div class="av" aria-hidden="true">${esc(h.ticker.slice(0,3))}</div>
-        <div class="m"><div class="t">${esc(h.ticker)}<span class="ftag">${r.freq==="배당 없음"?"일반":r.freq.replace("배당","")}</span></div>
-          <div class="s num">${qty(h.shares)}주 · 비중 ${r.weight.toFixed(1)}%${r.yld!=null?` · 배당률 ${r.yld.toFixed(1)}%`:""}</div>
-          <div class="s num">${r.type} · ${esc(r.account)}${r.da?` · 예상 연 ${won(r.da)}`:""}</div></div>
-        <div class="rt"><div class="t num">${won(r.v)}</div>${r.plp!=null?`<div class="s num ${cls(r.pl)}">${pct(r.plp,1)}</div>`:`<div class="s">${r.est?"매입금액":""}</div>`}${r.totp!=null&&r.d>0?`<div class="s num ${cls(r.totp)}" style="font-weight:500;font-size:12px">배당 포함 ${pct(r.totp,1)}</div>`:""}</div></div>`; };
-  const rowT=r=>`<tr data-hold="${r.h.id}"><td class="l"><b>${esc(r.h.ticker)}</b><div class="s">${r.type} · ${esc(r.account)}</div></td><td><b>${r.weight.toFixed(1)}%</b></td><td>${qty(r.h.shares)}</td><td>${avgTxt(r)}</td><td>${priceTxt(r)}</td><td>${won(r.v)}${r.est?`<div class="s">매입금액</div>`:""}</td><td class="${cls(r.pl||0)}">${r.plp!=null?pct(r.plp,1):"-"}</td><td class="${cls(r.pl||0)}">${r.pl!=null?wonS(r.pl):"-"}</td><td>${r.yld!=null?r.yld.toFixed(1)+"%":"-"}</td><td>${r.da?won(r.da):"-"}</td><td><span class="ftag">${r.freq==="배당 없음"?"없음":r.freq.replace("배당","")}</span></td><td>${r.region}</td></tr>`;
+  const ghd=(k,rs)=>{ const g=gsum(rs), shut=holdShut.has(k); return {shut,html:`<div class="ghd" data-gt="${esc(k)}" role="button" aria-expanded="${!shut}"><b>${shut?"▸":"▾"} ${esc(k)}</b><span class="num">${rs.length}종목 · ${won(g.v)} · ${g.w.toFixed(0)}%${g.pp!=null?` · <i class="${cls(g.pp)}" style="font-style:normal">${pct(g.pp,1)}</i>`:""}</span></div>`}; };
+  const ftag=r=>`<span class="ftag">${r.freq==="배당 없음"?"일반":r.freq.replace("배당","")}</span>`;
+  const rowM=r=>`<div class="hl" data-hold="${r.h.id}"><div class="m"><div class="t">${esc(r.h.ticker)}${ftag(r)}</div><div class="s num">${qty(r.h.shares)}주 · 비중 ${r.weight.toFixed(1)}%${r.yld!=null?` · 배당률 ${r.yld.toFixed(1)}%`:""}</div></div>
+    <div class="rt"><div class="t num">${won(r.v)}</div>${r.plp!=null?`<div class="s num ${cls(r.pl)}">${pct(r.plp,1)}</div>`:`<div class="s">${r.est?"매입금액":""}</div>`}</div></div>`;
+  const rowT=r=>`<tr data-hold="${r.h.id}"><td class="l"><b>${esc(r.h.ticker)}</b> ${ftag(r)}</td><td><b>${r.weight.toFixed(1)}%</b></td><td>${qty(r.h.shares)}</td><td>${avgTxt(r)}</td><td>${priceTxt(r)}</td><td>${won(r.v)}${r.est?`<div class="s">매입금액</div>`:""}</td><td class="${cls(r.pl||0)}">${r.plp!=null?pct(r.plp,1):"-"}</td><td>${r.yld!=null?r.yld.toFixed(1)+"%":"-"}</td></tr>`;
   let list;
   if(!view.length) list=`<section class="card"><div class="empty">조건에 맞는 종목이 없어요</div></section>`;
   else if(isWide()){
-    list=`<section class="card full" style="padding:0"><div class="tbl ptbl"><table><thead><tr><th class="l">종목</th><th>비중</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가금</th><th>수익률</th><th>수익금</th><th>배당률</th><th>예상 연배당</th><th>주기</th><th>지역</th></tr></thead><tbody>${groups.map(([k,rs])=>{ if(!gfn) return rs.map(rowT).join(""); const g=ghd(k,rs); return `<tr class="grow" data-gt="${esc(k)}"><td colspan="12">${g.html}</td></tr>`+(g.shut?"":rs.map(rowT).join("")); }).join("")}</tbody></table></div></section>`;
+    list=`<section class="card full" style="padding:0"><div class="tbl ptbl"><table><thead><tr><th class="l">종목</th><th>비중</th><th>수량</th><th>평단가</th><th>현재가</th><th>평가금</th><th>수익률</th><th>배당률</th></tr></thead><tbody>${groups.map(([k,rs])=>{ if(!gfn) return rs.map(rowT).join(""); const g=ghd(k,rs); return `<tr class="grow" data-gt="${esc(k)}"><td colspan="8">${g.html}</td></tr>`+(g.shut?"":rs.map(rowT).join("")); }).join("")}</tbody></table></div></section>`;
   } else {
     list=`<section class="card" style="padding:4px 16px">${groups.map(([k,rs])=>{ if(!gfn) return rs.map(rowM).join(""); const g=ghd(k,rs); return g.html+(g.shut?"":rs.map(rowM).join("")); }).join("")}</section>`;
   }
-  const notes=[`달러 종목은 오늘 환율(${S.settings.fx.toLocaleString()}원)로 평가해요.`];
-  if(P.missing) notes.push(`가격이 없는 종목 ${P.missing}개는 합계에서 빠졌어요(목록에는 매입금액으로 표시).`);
-  if(!S.settings.tdKey) notes.push("설정에서 주가 API 키를 넣으면 현재가가 자동으로 들어와요.");
-  const q=Object.values(S.quotes).map(x=>x.at).sort().pop();
-  const m=money();
+  const note=P.missing?`가격이 없는 종목 ${P.missing}개는 매입금액으로 표시돼요.`:!S.settings.tdKey?"설정에서 주가 키를 넣으면 현재가가 자동으로 들어와요.":"";
   return `${banner}${topCard()}${holdSeg("list")}
-    ${moneyRow(m)}
     ${comp}
-    <div class="listhead full"><h2 style="margin:0">보유 종목 <small>${view.length}개</small></h2><button class="small ghost" id="refQ" ${S.settings.tdKey?"":"disabled"}>주가 새로고침${q?` · ${new Date(q).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`:""}</button></div>
-    ${filt}${ctl}${sortSeg}${list}
-    <details class="help full" style="margin:0 4px 14px"><summary>참고</summary><p class="muted" style="margin:6px 0 0">${notes.join(" ")}</p></details>`;
+    <div class="listhead full"><h2 style="margin:0">보유 종목 <small>${view.length}개</small></h2><button class="small ghost" id="refQ" ${S.settings.tdKey?"":"disabled"}>새로고침</button></div>
+    ${ctl}${list}
+    ${note?`<p class="muted full" style="font-size:12px;margin:0 4px 14px">${note}</p>`:""}`;
 }
 
 // ---------- 배당 탭 ----------
-let divMode = "sched", trendMode = "month";
+let divMode = "sched", trendMode = "week";
 function divSeg(active){
   return `<div class="pills" id="pillseg">${[["div","현황"],["log","기록"],["plan","계획"]].map(([k,l])=>`<button data-goto="${k}" aria-pressed="${active===k}">${l}</button>`).join("")}</div>`;
 }
@@ -203,11 +190,12 @@ function monthGrid(){
     <section class="card"><h2>${y}년 월별 흐름 <small>세후</small></h2>${monthBars(act,fc,cm)}<div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span><span><i style="background:var(--red);opacity:.35"></i>예상(지난 지급 기준)</span></div></section>`;
 }
 function viewDiv(){
-  const sub=`<div class="seg" id="dseg" style="margin-bottom:14px">${[["sched","이번 주"],["month","월별"],["trend","추이"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${divMode===k}">${l}</button>`).join("")}</div>`;
+  const sub=`<div class="seg" id="dseg" style="margin-bottom:14px">${[["sched","이번 주"],["month","월별"],["trend","추이"],["ticker","종목"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${divMode===k}">${l}</button>`).join("")}</div>`;
   let body="";
   if(divMode==="sched") body=weekDaysCard()+alertCard()+weekCalCard();
   else if(divMode==="month") body=monthGrid()+monthlyCard();
-  else body=`<div class="seg" id="dtseg" style="margin-bottom:14px">${[["month","월별"],["week","주별"],["cum","누적"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${trendMode===k}">${l}</button>`).join("")}</div>`+viewChart(trendMode,true);
+  else if(divMode==="ticker") body=viewChart("ticker",true);
+  else body=`<div class="seg" id="dtseg" style="margin-bottom:14px">${[["week","주별"],["month","월별"],["cum","누적"],["rate","배당률"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${trendMode===k}">${l}</button>`).join("")}</div>`+(trendMode==="rate"?rateView():viewChart(trendMode,true));
   return topCard()+divSeg("div")+sub+body;
 }
 
