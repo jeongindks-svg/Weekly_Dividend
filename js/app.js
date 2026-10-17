@@ -28,11 +28,10 @@ function bindView(){
   on("#hcmp",()=>{ holdCompact=!holdCompact; render(); });
   v.querySelectorAll("[data-gt]").forEach(g=>g.onclick=()=>{ const k=g.dataset.gt; if(holdShut.has(k)) holdShut.delete(k); else holdShut.add(k); render(); });
   segOf("#hmode",b=>holdMode=b.dataset.hm); segOf("#jseg",b=>jFilter=b.dataset.f); segOf("#cfilter",b=>cashAcc=b.dataset.a);
-  on("#reMark",()=>{ const n=autoMarkReinvest(); if(!n){ toast("표시할 매수가 없어요"); return; } persist(); render(); toast(`${n}건을 재투자로 표시했어요. 맞지 않으면 종목 편집 → 매수 기록에서 고쳐 주세요`); });
   on("#addBuy",buyPick); on("#addSell",()=>sellSheet()); on("#addCash",()=>cashSheet());
+  v.querySelectorAll("[data-jm]").forEach(r=>r.onclick=()=>journalDetailSheet(r.dataset.jm));
   v.querySelectorAll("[data-trade]").forEach(r=>r.onclick=()=>tradeSheet(r.dataset.trade));
   v.querySelectorAll("[data-cash]").forEach(r=>r.onclick=()=>cashSheet(r.dataset.cash));
-  ["#sim-m","#sim-p","#sim-d"].forEach(sel=>{ const el=v.querySelector(sel); if(el) el.onchange=()=>{ S.settings.sim={monthly:Math.max(0,+$("#sim-m").value||0),priceG:+$("#sim-p").value||0,divG:+$("#sim-d").value||0}; touchSettings(); persist(); render(); }; });
   v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
   const ps=v.querySelector("#pseg"); if(ps) ps.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ planMode=b.dataset.m; render(); } };
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;
@@ -73,8 +72,8 @@ function bindView(){
   on("#fxRef",async()=>{ toast("환율을 불러오는 중…"); const r=await getFx(todayStr()); if(r.src==="offline") toast("인터넷 연결을 확인해 주세요"); else { S.settings.fx=r.rate; S.settings.fxDate=todayStr(); touchSettings(); persist(); render(); toast("환율을 갱신했어요"); } });
   on("#saveSet",()=>{ const st=S.settings; st.goalMonthly=+$("#sgoal").value||0; st.autoFx=$("#sauto").checked; if(!st.autoFx) st.fx=+$("#sfx").value||st.fx;
     st.taxUS=+$("#stu").value; st.taxKR=+$("#stk").value; touchSettings(); persist(); render(); toast("저장했어요"); if(st.autoFx) refreshTodayFx(); });
-  ["#srp","#sda"].forEach(sel=>{ const el=v.querySelector(sel); if(el) el.onchange=()=>{ const st=S.settings;
-    st.reinvestPct=Math.min(100,Math.max(0,+$("#srp").value||0)); st.divAlertPct=Math.max(1,+$("#sda").value||10); touchSettings(); persist(); toast("저장했어요"); }; });
+  ["#sda"].forEach(sel=>{ const el=v.querySelector(sel); if(el) el.onchange=()=>{ const st=S.settings;
+    st.divAlertPct=Math.max(1,+$("#sda").value||10); touchSettings(); persist(); toast("저장했어요"); }; });
   const sg=v.querySelector("#sgoal"); if(sg) sg.onchange=()=>{ S.settings.goalMonthly=+sg.value||0; touchSettings(); persist(); toast("목표를 저장했어요"); };
   on("#tdSave",async()=>{ S.settings.tdKey=$("#std").value.trim(); touchSettings(); persist();
     if(!S.settings.tdKey){ render(); toast("키를 지웠어요"); return; }

@@ -1,5 +1,5 @@
 "use strict";
-// ===== v5 리뉴얼: 포트폴리오 · 배당 · 분석(비중·재투자) =====
+// ===== v5 리뉴얼: 포트폴리오 · 배당 · 분석(자산·비중) =====
 // 참고: divflow(상단 TOTAL ASSET, 4개 분석 탭, 빈 화면 미리보기, 자산 구성, 보유 종목 표),
 //       디어나 주식로그(계좌별 관리, 종목 비중 트리맵, 유형 도넛, 계좌별 원금 vs 평가)
 
@@ -71,7 +71,7 @@ function moneyRow(m){
 }
 function calcInfoSheet(){
   openSheet(`<h3>계산 기준</h3><p class="hint">모든 화면이 이 한 가지 기준을 써요.</p>
-    ${[["총 평가금액","지금 가격으로 계산한 보유 주식의 가치"],["투자원금","산 금액의 합계 (배당으로 재투자해 산 것도 포함)"],["평가손익","평가금액 − 투자원금 (주가가 오르내린 몫)"],["받은 배당","세금을 뺀 배당 합계"],["총 수익","평가손익 + 받은 배당"],["총 수익률","총 수익 ÷ 투자원금"]].map(([t,d])=>`<div class="lrow"><div><div class="t">${t}</div><div class="s">${d}</div></div></div>`).join("")}
+    ${[["총 평가금액","지금 가격으로 계산한 보유 주식의 가치"],["투자원금","산 금액의 합계"],["평가손익","평가금액 − 투자원금 (주가가 오르내린 몫)"],["받은 배당","세금을 뺀 배당 합계"],["총 수익","평가손익 + 받은 배당"],["총 수익률","총 수익 ÷ 투자원금"]].map(([t,d])=>`<div class="lrow"><div><div class="t">${t}</div><div class="s">${d}</div></div></div>`).join("")}
     <p class="hint" style="margin-top:10px">달러 종목은 오늘 환율(${S.settings.fx.toLocaleString()}원)로 평가해요. 가격이 없는 종목은 합계에서 빠져요.</p>
     <div class="btnrow" style="margin-top:8px"><button class="primary" id="cix">확인</button></div>`,()=>{ $("#cix").onclick=closeSheet; });
 }
@@ -231,63 +231,4 @@ function mixView(){
     <section class="card"><h2>구성 분석 <small>Top 5 + 기타</small></h2>${seg}${donut(top5(items))}</section>
     <section class="card"><h2>계좌별 <small>원금과 평가금액</small></h2>${accs.map(x=>{ const gain=x.v-x.c; return `<div class="acc"><div class="ah"><b>${esc(x.a)}</b><span class="num">${won(x.v)} <small class="${cls(gain)}">${x.c?pct(gain/x.c*100,1):""}</small></span></div>
       <div class="ab"><i class="c" style="width:${Math.min(100,Math.min(x.c,x.v)/mx*100)}%"></i><i class="g ${gain<0?"l":""}" style="width:${Math.min(100,Math.abs(gain)/mx*100)}%"></i></div></div>`; }).join("")}<div class="legend"><span><i style="background:#6b7384"></i>투자 원금(입출금 기록이 있으면 실투자원금)</span><span><i style="background:var(--red)"></i>수익</span><span><i style="background:var(--blue)"></i>손실</span></div></section>`;
-}
-
-// ---------- 분석: 배당 재투자 시뮬레이터 (divflow ‘시간이 만드는 눈덩이 효과’) ----------
-function simParams(){ return Object.assign({monthly:50,priceG:5,divG:3},S.settings.sim||{}); }
-function simRun(){
-  const sp=simParams(), P=portfolio(), V0=P.tVal||0, annual=S.holdings.reduce((a,h)=>a+annualDivOf(h),0), y0raw=V0>0&&annual>0?annual/V0:0.04, y0=Math.min(0.12,y0raw), real=V0>0&&annual>0, capped=y0raw>0.12;
-  const pg=sp.priceG/100, dg=sp.divG/100, rp=RP(); let U=V0>0?V0:0, out=[];
-  for(let yr=0; yr<=30; yr++){ const price=Math.pow(1+pg,yr), dpu=y0*Math.pow(1+dg,yr); // 단위당 연 배당(초기 가격 1 기준)
-    out.push({yr,V:(V0>0?U:U)*price,m:U*dpu/12});
-    for(let k=0;k<12&&yr<30;k++){ const p=Math.pow(1+pg,yr+k/12), div=U*dpu/12; U+=(sp.monthly*10000+div*rp)/p; } }
-  return {out,y0,real,V0,capped};
-}
-// ---------- 배당 재투자 성과 ----------
-// 총수익 = 원금으로 산 주식의 가격 손익 + 받은 배당(현금) + 재투자로 산 주식의 평가 손익
-// 재투자한 배당은 다시 주식을 산 순간부터 가격 위험을 지므로, 그 주식이 내리면 재투자 손익이 마이너스가 되고 총수익이 줄어요.
-function reinvestStats(){
-  const P=portfolio(), rows=[]; let T={ra:0,rv:0,pa:0,pv:0,div:0,n:0};
-  for(const r of P.rows){ const h=r.h, ls=(h.lots||[]).filter(l=>!l.sell&&l.shares>0); if(!ls.length||r.p==null) continue;
-    const pos=ls.reduce((x,l)=>x+l.shares,0), f=pos>0?Math.min(1,h.shares/pos):1, px=r.p*(h.currency!=="KRW"?S.settings.fx:1);
-    let ra=0,rv=0,pa=0,pv=0,n=0;
-    for(const l of ls){ const c=lotCostKRW(h,l)*f, v=l.shares*f*px; if(l.re){ ra+=c; rv+=v; n++; } else { pa+=c; pv+=v; } }
-    rows.push({h,ra,rv,pa,pv,n,div:r.d}); T.ra+=ra; T.rv+=rv; T.pa+=pa; T.pv+=pv; T.div+=r.d; T.n+=n; }
-  return {rows,T};
-}
-function autoMarkReinvest(){
-  let n=0; for(const h of S.holdings) for(const l of (h.lots||[])){ if(l.sell||l.re) continue;
-    if(S.entries.some(e=>e.ticker===h.ticker&&e.date<=l.date&&e.date>=addDays(l.date,-7))){ l.re=true; n++; h.updated=Date.now(); } }
-  return n;
-}
-function reinvestCard(){
-  const {rows,T}=reinvestStats();
-  if(!rows.length) return "";
-  const rPL=T.rv-T.ra, pPL=T.pv-T.pa, total=pPL+T.div+rPL, noCash=pPL+T.div;
-  const cand=S.holdings.reduce((a,h)=>a+(h.lots||[]).filter(l=>!l.sell&&!l.re&&S.entries.some(e=>e.ticker===h.ticker&&e.date<=l.date&&e.date>=addDays(l.date,-7))).length,0);
-  if(T.n===0) return `<section class="card"><h2>내 배당 재투자 성과</h2><p class="muted" style="margin:0 0 10px">매수 기록에서 ‘배당금으로 재투자해서 산 주식’을 표시하면, 재투자한 배당이 지금 얼마가 됐는지 따로 계산해요.</p>
-    ${cand?`<button class="primary" id="reMark">배당일 근처에 산 매수 ${cand}건을 재투자로 표시</button>`:`<p class="muted" style="font-size:12.5px;margin:0">종목 편집 → 매수 기록에서 재투자한 매수에 체크해 주세요.</p>`}</section>`;
-  const row=(l,v,sub)=>`<div class="lrow"><div><div class="t">${l}</div>${sub?`<div class="s">${sub}</div>`:""}</div><div class="r"><div class="p num ${cls(v)}" style="font-size:16px">${wonS(v)}</div></div></div>`;
-  const tk=rows.filter(x=>x.n>0).sort((a,b)=>(b.rv-b.ra)-(a.rv-a.ra));
-  return `<section class="card"><h2>내 배당 재투자 성과 <small>재투자로 산 주식</small></h2>
-    <div class="av2s num ${cls(rPL)}" style="font-size:30px;font-weight:800;letter-spacing:-.03em">${wonS(rPL)} <span style="font-size:16px">${T.ra>0?pct(rPL/T.ra*100,1):""}</span></div>
-    <p class="muted" style="margin:2px 0 12px;font-size:13px">재투자한 ${won(T.ra)}(${T.n}건)이 지금 ${won(T.rv)}이에요.</p>
-    <div class="legend" style="margin:0 0 4px"><span><b>총수익 구성</b></span></div>
-    ${row("원금으로 산 주식의 가격 손익",pPL)}${row("받은 배당 (세후, 현금으로 들어온 금액)",T.div)}${row("재투자한 주식의 평가 손익",rPL,rPL<0?"재투자한 뒤 주가가 내려서 손실이에요":"재투자한 뒤 주가가 올라서 이득이에요")}
-    <div class="lrow" style="border-top:2px solid var(--rule)"><div><div class="t">총수익</div><div class="s">현금으로 그대로 뒀다면 ${wonS(noCash)}</div></div><div class="r"><div class="p num ${cls(total)}">${wonS(total)}</div></div></div>
-    <p class="muted" style="font-size:12.5px;margin:8px 0 0">배당을 다시 주식으로 사는 순간부터 그 돈도 주가 변동을 받아요. 그래서 재투자 주식이 내리면 이 손익이 마이너스가 되고 총수익이 줄어요. 반대로 오르면 재투자 덕분에 늘어난 몫이에요. 재투자 주식이 낸 배당은 받은 배당에 이미 들어 있어요.</p>
-    ${tk.length>1?`<div class="tbl" style="margin-top:10px"><table><thead><tr><th class="l">종목</th><th>재투자금</th><th>지금 가치</th><th>손익</th></tr></thead><tbody>${tk.map(x=>`<tr><td class="l"><b>${esc(x.h.ticker)}</b></td><td>${won(x.ra)}</td><td>${won(x.rv)}</td><td class="${cls(x.rv-x.ra)}">${wonS(x.rv-x.ra)}</td></tr>`).join("")}</tbody></table></div>`:""}
-    ${cand?`<div class="btnrow" style="margin-top:10px"><button id="reMark">배당일 근처에 산 매수 ${cand}건도 재투자로 표시</button></div>`:""}</section>`;
-}
-function simView(){
-  const sp=simParams(), {out,y0,real,V0,capped}=simRun(), pick=[0,10,20,30].map(i=>out[i]);
-  const lc=lineChart({labels:out.map(o=>o.yr+"년"),series:[{values:out.map(o=>o.V),color:"var(--blue)"}],fmt:kfmt,labelEvery:5});
-  return reinvestCard()+`<section class="card hero2"><div class="k">COMPOUND GROWTH</div><div class="big" style="font-size:26px;line-height:1.25;margin:4px 0 6px">시간이 만드는<br>눈덩이 효과</div>
-    <p class="muted" style="margin:0 0 12px">배당을 ${Math.round(RP()*100)}% 재투자하고 매달 ${sp.monthly}만원을 더 넣으면 30년 뒤 어떻게 될까요?</p>${lc}</section>
-    <section class="cards4">${pick.map((o,i)=>`<div class="${i===3?"on":""}"><div class="k">${i===0?"현재":o.yr+"년 뒤"}</div><div class="v num">${kfmt(o.V)}</div><div class="s">월 배당 ${kfmt(o.m)}</div></div>`).join("")}</section>
-    <section class="card"><h2>가정 바꿔 보기</h2>
-      <div class="srow"><label for="sim-m">매달 추가 투자 (만원)</label><input id="sim-m" type="number" inputmode="decimal" step="1" value="${sp.monthly}"></div>
-      <div class="srow"><label for="sim-p">연 주가 상승률 (%)</label><input id="sim-p" type="number" inputmode="decimal" step="0.5" value="${sp.priceG}"></div>
-      <div class="srow"><label for="sim-d">연 배당 성장률 (%)</label><input id="sim-d" type="number" inputmode="decimal" step="0.5" value="${sp.divG}"></div>
-      <p class="muted" style="font-size:12.5px;margin:6px 0 0">${real?`내 보유 종목의 예상 배당률 ${(y0*100).toFixed(1)}%(세후)와 현재 평가금액 ${won(V0)}에서 시작해요.`:`보유 종목의 배당 기록이 없어서 예시로 배당률 4%(세후)를 썼어요.`} ${capped?` 계산된 배당률이 너무 높아 12%로 제한했어요(배당 기록이 짧으면 높게 나올 수 있어요).`:""} 배당 재투자 비율은 설정에서 바꿔요. 실제 수익을 보장하지 않는 단순 계산이에요.</p></section>`;
 }

@@ -162,9 +162,9 @@ function tickerDetail(t){
 }
 
 function viewChart(modeOverride,noSeg){
-  let mode=modeOverride||chartMode; if(!noSeg&&!["asset","mix","sim"].includes(mode)) mode=chartMode="asset";
+  let mode=modeOverride||chartMode; if(!noSeg&&!["asset","mix"].includes(mode)) mode=chartMode="asset";
   const now=new Date(), y=now.getFullYear(), b=basis();
-  const seg=noSeg?"":topCard()+`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["mix","비중"],["sim","재투자"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${mode===k}">${l}</button>`).join("")}</div>`;
+  const seg=noSeg?"":topCard()+`<div class="seg" id="cseg" style="margin-bottom:14px">${[["asset","자산"],["mix","비중"]].map(([k,l])=>`<button data-m="${k}" aria-pressed="${mode===k}">${l}</button>`).join("")}</div>`;
   if(mode==="ticker"){
     const ts=[...new Set(S.entries.map(e=>e.ticker))].sort();
     if(tickerSel!=="all" && !ts.includes(tickerSel)) tickerSel="all";
@@ -176,7 +176,6 @@ function viewChart(modeOverride,noSeg){
   }
   if(mode==="asset") return seg+assetView();
   if(mode==="mix") return seg+mixView();
-  if(mode==="sim") return seg+simView();
   if(mode==="rate") return seg+rateView();
   const months=new Array(12).fill(0).map((_,i)=>actualYm(ymOf(y,i),b)), goals=months.map((_,i)=>goalFor(y,i)), hasGoal=goals.some(g=>g>0);
   const firstThisYear=S.entries.map(e=>e.date).filter(d=>d.startsWith(y+"-")).sort()[0];
@@ -337,9 +336,8 @@ function viewSet(){
   const grp=(id,title,status,body)=>`<details class="sgrp" data-g="${id}"${SETOPEN.has(id)?" open":""}><summary><span class="gt">${title}</span><span class="gs">${status}</span></summary><div class="sbody">${body}</div></details>`;
   const goal=`${num("sgoal","기본 월 목표 (원)",st.goalMonthly||"","1000","예: 500000")}
     ${num("pby","기준 주배당 (%)",st.baseYield,"0.01")}
-    ${num("srp","배당 재투자 비율 (%)",st.reinvestPct,"1")}
     ${num("sda","배당 변동 알림 기준 (%)",st.divAlertPct,"1")}
-    <p class="muted" style="margin:4px 0 12px;font-size:12.5px">월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에, 재투자 비율은 보유 탭의 총수익률에, 알림 기준은 요약 탭의 배당 변동 알림에 써요.</p>`;
+    <p class="muted" style="margin:4px 0 12px;font-size:12.5px">월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에 쓰여요. 알림 기준은 최근 지급이 평소보다 이만큼 달라지면 알려 줘요.</p>`;
   const fx=`<div class="srow"><div><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신 · `:""}배당은 입금일 환율로 계산해요</div></div><button class="small" id="fxRef">새로고침</button></div>
     <div class="srow"><label for="sauto">환율 자동 연동</label><input type="checkbox" id="sauto" style="width:22px;height:22px" ${st.autoFx?"checked":""}></div>
     <div id="manualFx" ${st.autoFx?"hidden":""}>${num("sfx","직접 입력 환율",st.fx,"0.01")}</div>
@@ -381,7 +379,7 @@ create policy "own delete" on public.app_state for delete to authenticated using
       <div class="seg" id="hideSeg" style="width:132px"><button data-h="0" aria-pressed="${!HIDE}">보이기</button><button data-h="1" aria-pressed="${HIDE}">숨기기</button></div></div>
   </section>
   <section class="card" style="padding:0 16px">
-    ${grp("goal","목표 · 수익률",`재투자 ${st.reinvestPct}%`,goal)}
+    ${grp("goal","목표 · 수익률",`월 ${st.goalMonthly?won(+st.goalMonthly):"-"}`,goal)}
     ${grp("fx","환율 · 세금",`${st.fx.toLocaleString()}원 · ${st.taxUS}% / ${st.taxKR}%`,fx)}
     ${grp("price","주가 연동",st.tdKey?"연결됨":"미연결",price)}
     ${grp("google","구글 계정 · 자동 동기화",Cloud.ready()?"연결됨":"미연결",google)}
