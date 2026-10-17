@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="9.0", APP_DATE="2026-10-16", APP_NOTES="심플 리뉴얼: 홈·배당·분석·매매일지 정리, 월별 통계표";
+const APP_VERSION="9.1", APP_DATE="2026-10-16", APP_NOTES="주별 받은 금액 그래프(밀어서 이전 주), 주배당률 변화, 태블릿 대칭";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

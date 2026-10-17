@@ -649,3 +649,18 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
 @media (min-width:900px){
   #view.tab-home > .topcard:not(.cp){grid-row:span 2}
 }
+
+/* v9.1: 태블릿 대칭 — 홈은 위 두 카드를 같은 높이로, 아래는 한 줄로 / 포트폴리오는 가운데 한 줄 / 비중은 2×2 */
+.topcard:not(.cp){display:flex;flex-direction:column}
+.topcard:not(.cp) .mrow{margin-top:auto}
+.card.hero{display:flex;flex-direction:column}
+@media (min-width:900px){
+  #view.tab-home{align-items:stretch}
+  #view.tab-home > .topcard:not(.cp){grid-row:auto}
+  #view > .wkcard{grid-column:1/-1}
+  #view.colw{display:block;max-width:880px;margin:0 auto}
+  #view.colw > .pills,#view.colw > .seg,#view.colw > .jctl,#view.colw > .btnrow,#view.colw > .hctl,#view.colw > .stats3{max-width:none}
+  #view.tab-chart{align-items:stretch}
+}
+.wfh .k{white-space:nowrap}
+.wfh{margin-bottom:4px}
