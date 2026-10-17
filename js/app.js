@@ -14,8 +14,8 @@ function bindView(){
   v.querySelectorAll("[data-week]").forEach(r=>r.onclick=()=>weekSheet(r.dataset.week));
   v.querySelectorAll("[data-day]").forEach(r=>r.onclick=()=>daySheet(r.dataset.day));
   const segOf=(id,fn)=>{ const el=v.querySelector(id); if(el) el.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ fn(b); render(); } }; };
-   segOf("#dseg",b=>divMode=b.dataset.m); segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
-  v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; render(); window.scrollTo(0,0); });
+   segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
+  v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; if(b.dataset.dm) divMode=b.dataset.dm; render(); window.scrollTo(0,0); });
   on("#addHold2",()=>holdSheet()); on("#goCal",()=>monthCalSheet());
   segOf("#compseg",b=>holdComp=b.dataset.m); on("#calcInfo",calcInfoSheet);
   const tr=v.querySelector("#toprange"); if(tr) tr.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ topRange=b.dataset.r; render(); } };
@@ -29,6 +29,7 @@ function bindView(){
   v.querySelectorAll("[data-gt]").forEach(g=>g.onclick=()=>{ const k=g.dataset.gt; if(holdShut.has(k)) holdShut.delete(k); else holdShut.add(k); render(); });
   segOf("#hmode",b=>holdMode=b.dataset.hm); segOf("#jseg",b=>jFilter=b.dataset.f); segOf("#jview",b=>jView=b.dataset.v);
   on("#addBuy",buyPick); on("#addSell",()=>sellSheet());
+  v.querySelectorAll("[data-jmonth]").forEach(r=>r.onclick=()=>journalMonthSheet(r.dataset.jmonth));
   v.querySelectorAll("[data-jm]").forEach(r=>r.onclick=()=>journalDetailSheet(r.dataset.jm));
   v.querySelectorAll("[data-trade]").forEach(r=>r.onclick=()=>tradeSheet(r.dataset.trade));
   v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
@@ -90,7 +91,7 @@ function bindView(){
     const url=location.origin+location.pathname+"#jb-sb="+encodeURIComponent(btoa(JSON.stringify({u:c.url,k:c.key})));
     try{ await navigator.clipboard.writeText(url); toast("링크를 복사했어요. 다른 기기에서 열어 주세요"); }
     catch(e){ prompt("이 링크를 다른 기기에서 열어 주세요", url); } });
-  v.querySelectorAll("[data-go-rate]").forEach(el=>el.onclick=()=>{ tab="div"; divMode="trend"; trendMode="rate"; render(); window.scrollTo(0,0); });
+  v.querySelectorAll("[data-go-rate]").forEach(el=>el.onclick=()=>{ tab="div"; divMode="flow"; trendMode="rate"; render(); window.scrollTo(0,0); });
   on("#syOut",()=>saveFile(`주배당_백업_${todayStr()}.json`,exportJSON(),"application/json"));
   const si=v.querySelector("#syIn"), sf=v.querySelector("#syFile");
   if(si){ si.onclick=()=>sf.click(); sf.onchange=async()=>{ const f=sf.files[0]; if(!f) return;
