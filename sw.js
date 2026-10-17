@@ -1,4 +1,4 @@
-const CACHE="jubaedang-v44";
+const CACHE="jubaedang-v45";
 const FILES=["./","./index.html","./style.css","./js/core.js","./js/config.js","./js/cloud.js","./js/calc.js","./js/views.js","./js/renewal.js","./js/journal.js","./js/sheets.js","./js/app.js","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon.svg","./apple-touch-icon.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));self.skipWaiting();});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
