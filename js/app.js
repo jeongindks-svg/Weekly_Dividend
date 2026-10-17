@@ -17,6 +17,7 @@ function bindView(){
   segOf("#hsort",b=>holdSort=b.dataset.s); segOf("#hfilter",b=>holdFilter=b.dataset.a); segOf("#dseg",b=>divMode=b.dataset.m); segOf("#dtseg",b=>trendMode=b.dataset.m); segOf("#mixseg",b=>mixDim=b.dataset.m);
   v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; render(); window.scrollTo(0,0); });
   on("#addHold2",()=>holdSheet()); on("#goCal",()=>monthCalSheet());
+  segOf("#compseg",b=>holdComp=b.dataset.m); on("#calcInfo",calcInfoSheet);
   const tr=v.querySelector("#toprange"); if(tr) tr.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ topRange=b.dataset.r; render(); } };
   const wsg=v.querySelector("#wdseg"); if(wsg) wsg.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ wdRange=+b.dataset.n; render(); } };
   const ga=v.querySelector("[data-goasset]"); if(ga) ga.onclick=()=>{ tab="chart"; chartMode="asset"; render(); window.scrollTo(0,0); };
@@ -56,7 +57,6 @@ function bindView(){
   on("#pClear",()=>{ if(!confirm("계획을 모두 삭제할까요?")) return; S.plan.forEach(x=>markDeleted(x.id)); S.plan=[]; persist(); render(); });
   const py=v.querySelector("#pby"); if(py) py.onchange=()=>{ const n=+py.value; if(n>0){ S.settings.baseYield=n; touchSettings(); persist(); toast("기준 주배당을 저장했어요"); } };
   on("#refQ",async()=>{ toast("주가를 불러오는 중…"); if(await refreshQuotes(true)) toast("주가를 새로 불러왔어요"); });
-  on("#adiv",()=>{ assetDiv=!assetDiv; render(); });
   const at=v.querySelector("#artabs"); if(at) at.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ assetRange=b.dataset.r; render(); } };
   const asv=v.querySelector("#assetsvg"); if(asv&&ASSET){ const A=ASSET, head=$("#aHead"), cx=$("#acx"), cd=$("#acd");
     const show=ev=>{ const r=asv.getBoundingClientRect(); const x=(ev.clientX-r.left)/r.width*A.W; let best=null,bd=1e9; for(const p of A.pts){ const dx=Math.abs(A.X(p.ms)-x); if(dx<bd){ bd=dx; best=p; } }

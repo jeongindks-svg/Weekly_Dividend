@@ -133,7 +133,7 @@ function viewCash(){
     ${filt}
     ${groupYm(list,c=>c.date).map(([k,rs])=>{ const net=rs.reduce((a,c)=>a+(c.type==="out"?-c.amount:c.amount),0);
       return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)} <small>순입금 <span class="${cls(net)}">${wonS(net)}</span></small></h2>${rs.map(c=>`<div class="lrow tap" data-cash="${c.id}"><div><div class="t"><span class="tag ${c.type==="out"?"sell":"buy"}">${c.type==="out"?"출금":"입금"}</span> ${esc(c.account||"일반")}</div><div class="s">${fmtD(parseD(c.date))}${c.memo?` · ${esc(c.memo)}`:""}</div></div><div class="r"><div class="p num">${c.type==="out"?"-":"+"}${won(c.amount)}</div></div></div>`).join("")}</section>`; }).join("")}
-    <p class="muted full" style="font-size:12px;margin:0 2px 12px">실투자원금은 입금에서 출금을 뺀 값이에요. 평가금액에는 계좌 속 현금이 포함되지 않아서, 입금액과 차이가 나면 일부는 현금이거나 손익일 수 있어요. 홈·포트폴리오의 ‘내가 넣은 돈’에도 이 값을 써요.</p>`;
+    <p class="muted full" style="font-size:12px;margin:0 2px 12px">실투자원금은 통장에 넣은 돈(입금−출금)이에요. 주식을 산 금액인 ‘투자원금’과는 따로 계산하고, 계좌 속 현금은 평가금액에 들어가지 않아요.</p>`;
 }
 function cashSheet(id){
   const c=id?S.cash.find(x=>x.id===id):null; let type=c?c.type:"in";
