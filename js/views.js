@@ -92,12 +92,12 @@ function viewHome(){
     ${weekFlow()}
     ${goalBlock()}
   </section>
-  ${weekDaysCard()}
   <section class="stats3">
     <div><div class="k">최근 4주 평균</div><div class="v num">${won(avg)}</div><div class="muted" style="font-size:11.5px">1주 기준</div></div>
     <div><div class="k">연 환산</div><div class="v num">${won(avg*52)}</div><div class="muted" style="font-size:11.5px">평균 × 52</div></div>
     <div data-go-rate role="button" style="cursor:pointer"><div class="k">원금 대비 ›</div><div class="v num">${rr.rate!=null?rr.rate.toFixed(2)+"%":"-"}</div><div class="muted" style="font-size:11.5px">주배당률</div></div>
   </section>
+  ${weekDaysCard()}
   ${alertCard()}`;
 }
 

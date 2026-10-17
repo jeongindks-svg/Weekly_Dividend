@@ -27,11 +27,10 @@ function bindView(){
   const hg=v.querySelector("#hgrp"); if(hg) hg.onchange=()=>{ holdGroup=hg.value; render(); };
   on("#hcmp",()=>{ holdCompact=!holdCompact; render(); });
   v.querySelectorAll("[data-gt]").forEach(g=>g.onclick=()=>{ const k=g.dataset.gt; if(holdShut.has(k)) holdShut.delete(k); else holdShut.add(k); render(); });
-  segOf("#hmode",b=>holdMode=b.dataset.hm); segOf("#jseg",b=>jFilter=b.dataset.f); segOf("#cfilter",b=>cashAcc=b.dataset.a);
-  on("#addBuy",buyPick); on("#addSell",()=>sellSheet()); on("#addCash",()=>cashSheet());
+  segOf("#hmode",b=>holdMode=b.dataset.hm); segOf("#jseg",b=>jFilter=b.dataset.f); segOf("#jview",b=>jView=b.dataset.v);
+  on("#addBuy",buyPick); on("#addSell",()=>sellSheet());
   v.querySelectorAll("[data-jm]").forEach(r=>r.onclick=()=>journalDetailSheet(r.dataset.jm));
   v.querySelectorAll("[data-trade]").forEach(r=>r.onclick=()=>tradeSheet(r.dataset.trade));
-  v.querySelectorAll("[data-cash]").forEach(r=>r.onclick=()=>cashSheet(r.dataset.cash));
   v.querySelectorAll("details.sgrp").forEach(d=>d.addEventListener("toggle",()=>{ if(d.open) SETOPEN.add(d.dataset.g); else SETOPEN.delete(d.dataset.g); }));
   const ps=v.querySelector("#pseg"); if(ps) ps.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ planMode=b.dataset.m; render(); } };
   const hsc=v.querySelector("#hs"); if(hsc){ hsc.scrollLeft=hsc.scrollWidth; let dn=false,sx=0,sl=0;

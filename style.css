@@ -598,3 +598,32 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
 .hl .t{font-size:16px}
 .hctl{grid-template-columns:1fr 1fr}
 .hctl input{grid-column:1/-1}
+
+/* v8.4: 태블릿(넓은 화면) 배치를 격자로: 위쪽 컨트롤은 가로로 꽉 차게, 카드는 2칸에 차례로 */
+.jctl{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.jctl .seg{flex:1 1 180px}
+.dayh{font-size:12.5px;font-weight:700;color:var(--muted);padding:12px 0 2px;border-top:1px solid var(--rule)}
+.dayh:first-of-type{border-top:none}
+.dayh+.lrow{border-top:none}
+@media (min-width:900px){
+  #view{column-count:auto;column-gap:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;align-items:start}
+  #view > *{break-inside:auto;column-span:none;min-width:0}
+  #view > .full,#view > .topcard.cp,#view > .pills,#view > .seg,#view > .chips,#view > .btnrow,#view > p,#view > .stats3,
+  #view > .emptyhero,#view > .hctl,#view > .listhead,#view > .cmp,#view > .jctl,#view > .card.notice,#view > .assetcard,#view > .banner{grid-column:1/-1}
+  #view > .pills{max-width:420px}
+  #view > .jctl{max-width:640px}
+  #view > .seg{max-width:520px}
+  #view > .btnrow{max-width:560px}
+  #view > .stats3{max-width:none}
+  #view > p{margin-top:0 !important}
+  #view.one,#view.list{display:block}
+  #view.list{max-width:760px;margin:0 auto}
+  .topcard.cp{padding:16px 22px}
+  .topcard.cp .tv{font-size:32px}
+  .card{padding:20px 22px}
+  .lrow .t,.hl .t{font-size:16px}
+}
+@media (min-width:900px){
+  #view > .hctl{max-width:760px;grid-template-columns:2fr 1fr 1fr}
+  #view > .hctl input{grid-column:auto}
+}

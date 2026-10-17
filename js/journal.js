@@ -4,8 +4,8 @@
 // 매수 기록은 종목의 lots(매수 기록)에서, 매도는 S.trades에서 가져와요.
 // 매도하면 그 종목의 lots에 음수 수량(sell:true)을 한 줄 넣어서 수량·원금 계산이 그대로 맞아요(평균단가법).
 
-let holdMode = "list", jFilter = "all", cashAcc = "all";
-const holdSeg = a => `<div class="pills" id="hmode">${[["list","보유"],["trade","매매일지"],["cash","입출금"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
+let holdMode = "list", jFilter = "all", jView = "month";
+const holdSeg = a => `<div class="pills" id="hmode">${[["list","보유"],["trade","매매일지"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
 const groupYm = (items, fn) => { const m=new Map(); for(const x of items){ const k=fn(x).slice(0,7); if(!m.has(k)) m.set(k,[]); m.get(k).push(x); } return [...m]; };
 const ymTitle = k => { const [y,m]=k.split("-"); return `${y}년 ${+m}월`; };
 
@@ -28,6 +28,7 @@ function journalRow(x){
     <div class="s num">${fmtD(parseD(x.date))} · ${qty(x.shares)}주 × ${price}</div>${x.memo?`<div class="memo">“${esc(x.memo)}”</div>`:""}</div>
     <div class="r"><div class="p num">${won(x.krw)}</div>${x.k==="sell"?`<div class="s num ${cls(x.real)}">${wonS(x.real)} (${pct(x.pct,1)})</div>`:""}</div></div>`;
 }
+const groupDay=rows=>{ const m=new Map(); for(const x of rows){ if(!m.has(x.date)) m.set(x.date,[]); m.get(x.date).push(x); } return [...m]; };
 // 한 달 안에서 종목별로 묶기: 매수 몇 주·얼마, 매도 몇 주·얼마
 function tickerRows(rows){
   const m=new Map();
@@ -51,15 +52,16 @@ function viewTrades(){
   const items=journalItems();
   if(!items.length) return emptyCard("TRADE JOURNAL","언제, 왜 샀는지<br>기록해 보세요","매수 기록과 사유 메모를 남기면 내 판단을 돌아볼 수 있고, 매도를 기록하면 실현손익이 자동으로 계산돼요.",`<button class="primary bigbtn" id="addBuy">+ 매수 기록</button>`,SAMPLE_ROWS);
   const R=realizedSum(), list=items.filter(x=>jFilter==="all"||x.k===jFilter), nb=items.filter(x=>x.k==="buy").length;
-  const seg=`<div class="seg" id="jseg" style="margin:0 0 6px">${[["all","전체"],["buy","매수"],["sell","매도"]].map(([k,l])=>`<button data-f="${k}" aria-pressed="${jFilter===k}">${l}</button>`).join("")}</div>`;
+  const seg=`<div class="jctl"><div class="seg" id="jview">${[["month","월별"],["day","일별"]].map(([k,l])=>`<button data-v="${k}" aria-pressed="${jView===k}">${l}</button>`).join("")}</div><div class="seg" id="jseg">${[["all","전체"],["buy","매수"],["sell","매도"]].map(([k,l])=>`<button data-f="${k}" aria-pressed="${jFilter===k}">${l}</button>`).join("")}</div></div>`;
+  const DW="일월화수목금토", dayBlock=rows=>groupDay(rows).map(([d,rs])=>`<div class="dayh">${fmtD(parseD(d))} (${DW[parseD(d).getDay()]})</div>${rs.map(journalRow).join("")}`).join("");
   return `<section class="stats3"><div><div class="k">누적 실현손익</div><div class="v num ${cls(R.all)}">${R.n?wonS(R.all):"-"}</div></div>
     <div><div class="k">올해 실현손익</div><div class="v num ${cls(R.yr)}">${R.n?wonS(R.yr):"-"}</div></div>
     <div><div class="k">매수 · 매도</div><div class="v num">${nb} · ${R.n}건</div>${R.n?`<div class="muted" style="font-size:11.5px">이익 ${R.win}건</div>`:""}</div></section>
     <div class="btnrow full" style="margin:0 0 12px"><button id="addBuy">+ 매수 기록</button><button class="primary" id="addSell">+ 매도 기록</button></div>
     ${seg}
     ${list.length?groupYm(list,x=>x.date).map(([k,rows])=>{ const bk=rows.filter(x=>x.k==="buy").reduce((a,x)=>a+x.krw,0), sk=rows.filter(x=>x.k==="sell").reduce((a,x)=>a+x.krw,0), real=rows.reduce((a,x)=>a+(x.k==="sell"?x.real:0),0), hasS=rows.some(x=>x.k==="sell");
-      return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)} <small>${bk?`매수 ${won(bk)}`:""}${bk&&sk?" · ":""}${sk?`매도 ${won(sk)}`:""}</small></h2>${tickerRows(rows).map(o=>monthRow(k,o)).join("")}${hasS?`<div class="lrow"><div class="s">실현손익</div><div class="r"><b class="num ${cls(real)}">${wonS(real)}</b></div></div>`:""}</section>`; }).join(""):`<section class="card"><div class="empty">해당하는 기록이 없어요</div></section>`}
-    <p class="muted full" style="font-size:12px;margin:0 2px 12px">한 달에 종목별로 묶어서 보여줘요. 종목을 누르면 날짜별 내역이 열려요. 매도하면 보유 수량이 줄고, 평균 매수 단가(평균단가법) 기준으로 실현손익을 계산해요. 실현손익은 수수료·세금을 뺀 값이에요.</p>`;
+      return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)} <small>${bk?`매수 ${won(bk)}`:""}${bk&&sk?" · ":""}${sk?`매도 ${won(sk)}`:""}</small></h2>${jView==="day"?dayBlock(rows):tickerRows(rows).map(o=>monthRow(k,o)).join("")}${hasS?`<div class="lrow"><div class="s">실현손익</div><div class="r"><b class="num ${cls(real)}">${wonS(real)}</b></div></div>`:""}</section>`; }).join(""):`<section class="card"><div class="empty">해당하는 기록이 없어요</div></section>`}
+    <p class="muted full" style="font-size:12px;margin:0 2px 12px">월별은 한 달 안에서 종목별로 묶어 보여주고(종목을 누르면 날짜별 내역), 일별은 거래 하나하나를 날짜순으로 보여줘요. 매도하면 보유 수량이 줄고, 평균 매수 단가(평균단가법) 기준으로 실현손익을 계산해요. 실현손익은 수수료·세금을 뺀 값이에요.</p>`;
 }
 
 function buyPick(){
@@ -132,59 +134,16 @@ function tradeSheet(id){
       $("#tdel").onclick=()=>{ if(!confirm("이 매도 기록을 삭제할까요?\n팔았던 수량은 보유 수량으로 되돌아와요.")) return; undoSell(t); S.trades=S.trades.filter(x=>x.id!==t.id); markDeleted(t.id); persist(); closeSheet(); toast("삭제하고 보유 수량을 되돌렸어요"); }; });
 }
 
-// ---------- 입출금 (실투자원금) ----------
-const cashNet = acc => S.cash.reduce((a,c)=>(acc==="all"||c.account===acc)?a+(c.type==="out"?-c.amount:c.amount):a,0);
-const cashAccs = () => [...new Set([...S.cash.map(c=>c.account||"일반"),...liveHoldings().map(accountOf)])];
-function viewCash(){
-  if(!S.cash.length) return emptyCard("DEPOSITS","내가 실제로 넣은 돈,<br>얼마인가요?","계좌에 입금하고 출금한 내역을 적으면 실투자원금과 계좌별 수익이 계산돼요.",`<button class="primary bigbtn" id="addCash">+ 입금 기록</button>`,SAMPLE_ROWS);
-  const y=String(new Date().getFullYear()), inAll=S.cash.filter(c=>c.type!=="out").reduce((a,c)=>a+c.amount,0), outAll=S.cash.filter(c=>c.type==="out").reduce((a,c)=>a+c.amount,0), inY=S.cash.filter(c=>c.type!=="out"&&c.date.startsWith(y)).reduce((a,c)=>a+c.amount,0);
-  const rows=portRows(), accs=cashAccs();
-  if(cashAcc!=="all"&&!accs.includes(cashAcc)) cashAcc="all";
-  const accCard=accs.map(a=>{ const net=cashNet(a), v=rows.filter(r=>r.account===a).reduce((s,r)=>s+r.v,0), has=S.cash.some(c=>(c.account||"일반")===a), gain=v-net;
-    return `<div class="lrow"><div><div class="t">${esc(a)}</div><div class="s num">실투자원금 ${has?won(net):"-"} · 평가금 ${v?won(v):"-"}</div></div><div class="r">${has&&v?`<div class="p num ${cls(gain)}">${wonS(gain)}</div><div class="s num ${cls(gain)}">${net>0?pct(gain/net*100,1):""}</div>`:""}</div></div>`; }).join("");
-  const filt=`<div class="chips" id="cfilter">${["all",...accs].map(a=>`<button data-a="${esc(a)}" aria-pressed="${cashAcc===a}">${a==="all"?"전체":esc(a)}</button>`).join("")}</div>`;
-  const list=[...S.cash].filter(c=>cashAcc==="all"||(c.account||"일반")===cashAcc).sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created);
-  return `<section class="stats3"><div><div class="k">실투자원금</div><div class="v num">${won(inAll-outAll)}</div></div>
-    <div><div class="k">올해 입금</div><div class="v num">${won(inY)}</div></div>
-    <div><div class="k">총 출금</div><div class="v num">${outAll?won(outAll):"-"}</div></div></section>
-    <div class="btnrow full" style="margin:0 0 12px"><button class="primary" id="addCash">+ 입출금 기록</button></div>
-    <section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">계좌별 <small>실투자원금 vs 평가금액</small></h2>${accCard}</section>
-    ${filt}
-    ${groupYm(list,c=>c.date).map(([k,rs])=>{ const net=rs.reduce((a,c)=>a+(c.type==="out"?-c.amount:c.amount),0);
-      return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)} <small>순입금 <span class="${cls(net)}">${wonS(net)}</span></small></h2>${rs.map(c=>`<div class="lrow tap" data-cash="${c.id}"><div><div class="t"><span class="tag ${c.type==="out"?"sell":"buy"}">${c.type==="out"?"출금":"입금"}</span> ${esc(c.account||"일반")}</div><div class="s">${fmtD(parseD(c.date))}${c.memo?` · ${esc(c.memo)}`:""}</div></div><div class="r"><div class="p num">${c.type==="out"?"-":"+"}${won(c.amount)}</div></div></div>`).join("")}</section>`; }).join("")}
-    <p class="muted full" style="font-size:12px;margin:0 2px 12px">실투자원금은 통장에 넣은 돈(입금−출금)이에요. 주식을 산 금액인 ‘투자원금’과는 따로 계산하고, 계좌 속 현금은 평가금액에 들어가지 않아요.</p>`;
-}
-function cashSheet(id){
-  const c=id?S.cash.find(x=>x.id===id):null; let type=c?c.type:"in";
-  const last=S.cash.length?[...S.cash].sort((a,b)=>b.created-a.created)[0].account:"일반";
-  openSheet(`<h3>${c?"입출금 수정":"입출금 기록"}</h3>
-    <div class="seg" id="cty" style="margin-bottom:6px"><button type="button" data-t="in" aria-pressed="${type==="in"}">입금</button><button type="button" data-t="out" aria-pressed="${type==="out"}">출금</button></div>
-    <div class="grid2"><div><label class="f" for="cd">날짜</label><input id="cd" type="date" value="${c?c.date:todayStr()}"></div>
-    <div><label class="f" for="ca">금액 (원)</label><input id="ca" type="number" inputmode="decimal" step="any" value="${c?c.amount:""}"></div></div>
-    <label class="f" for="cac">계좌</label><input id="cac" list="cacl" value="${esc(c?c.account||"일반":last)}"><datalist id="cacl">${[...new Set([...accountsAll(),...S.cash.map(x=>x.account)])].map(a=>`<option value="${esc(a)}">`).join("")}</datalist>
-    <label class="f" for="cm">메모 (선택)</label><input id="cm" maxlength="60" value="${esc(c?c.memo||"":"")}" placeholder="예: 월급 투자금, 생활비 인출">
-    <div class="btnrow" style="margin-top:14px">${c?`<button class="danger" id="cdel">삭제</button>`:""}<button class="ghost" id="cx">취소</button><button class="primary" id="csv">저장</button></div>`,()=>{
-      $("#cty").onclick=ev=>{ const b=ev.target.closest("button"); if(!b) return; type=b.dataset.t; $("#cty").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.t===type)); };
-      $("#cx").onclick=closeSheet;
-      if(c) $("#cdel").onclick=()=>{ if(!confirm("이 기록을 삭제할까요?")) return; S.cash=S.cash.filter(x=>x.id!==c.id); markDeleted(c.id); persist(); closeSheet(); toast("삭제했어요"); };
-      $("#csv").onclick=()=>{ const amount=+$("#ca").value, date=$("#cd").value||todayStr();
-        if(!(amount>0)){ toast("금액을 입력해 주세요"); return; }
-        const rec={date,type,amount,account:$("#cac").value.trim()||"일반",memo:$("#cm").value.trim(),updated:Date.now()};
-        if(c) Object.assign(c,rec); else S.cash.push(Object.assign({id:uid(),created:Date.now()},rec));
-        persist(); closeSheet(); toast("저장했어요"); }; });
-}
-
 // ---------- 하루의 매매·입출금 (달력 · 하루 시트에서 같이 보여줘요) ----------
 function dayEvents(D){
   const ev=[];
   for(const h of S.holdings) for(const l of (h.lots||[])) if(!l.sell&&l.date===D&&l.shares>0) ev.push({k:"buy",txt:`${esc(h.ticker)} ${qty(l.shares)}주 매수`,amt:lotCostKRW(h,l),memo:l.memo,h});
   for(const t of S.trades) if(t.date===D) ev.push({k:"sell",txt:`${esc(t.ticker)} ${qty(t.shares)}주 매도`,amt:t.proceedsKRW,memo:t.memo,real:t.realized,t});
-  for(const c of S.cash) if(c.date===D) ev.push({k:"cash",txt:`${esc(c.account||"일반")} ${c.type==="out"?"출금":"입금"}`,amt:c.amount,memo:c.memo,out:c.type==="out",c});
   return ev;
 }
 function dayExtra(D){
   const ev=dayEvents(D); if(!ev.length) return "";
-  return `<h3 style="margin:14px 0 2px;font-size:15px">이 날의 매매·입출금</h3>${ev.map(e=>`<div class="lrow"><div><div class="t"><span class="tag ${e.k==="cash"?(e.out?"sell":"buy"):e.k}">${e.k==="cash"?"입출금":e.k==="buy"?"매수":"매도"}</span> ${e.txt}</div>${e.memo?`<div class="memo">“${esc(e.memo)}”</div>`:""}</div><div class="r"><div class="p num" style="font-size:15px">${e.k==="cash"&&e.out?"-":""}${won(e.amt)}</div>${e.real!=null?`<div class="s num ${cls(e.real)}">${wonS(e.real)}</div>`:""}</div></div>`).join("")}`;
+  return `<h3 style="margin:14px 0 2px;font-size:15px">이 날의 매수·매도</h3>${ev.map(e=>`<div class="lrow"><div><div class="t"><span class="tag ${e.k}">${e.k==="buy"?"매수":"매도"}</span> ${e.txt}</div>${e.memo?`<div class="memo">“${esc(e.memo)}”</div>`:""}</div><div class="r"><div class="p num" style="font-size:15px">${won(e.amt)}</div>${e.real!=null?`<div class="s num ${cls(e.real)}">${wonS(e.real)}</div>`:""}</div></div>`).join("")}`;
 }
 
 // ---------- 월 달력 ----------
@@ -202,7 +161,7 @@ function monthCalSheet(ym){
   openSheet(`<div class="calnav"><button type="button" class="small ghost" id="cprev" aria-label="이전 달">‹</button><h3 style="margin:0">${Y}년 ${M}월</h3><button type="button" class="small ghost" id="cnext" aria-label="다음 달">›</button></div>
     <div class="wsum" style="margin:6px 0 10px"><span>받은 배당 <b class="num">${won(recv)}</b></span>${left>0?`<span>남은 예정 <b class="num">~${won(left)}</b></span>`:""}</div>
     <div class="calgrid">${[...DOWN].map((c,i)=>`<span class="cdw${i===0?" su":""}">${c}</span>`).join("")}${cells}</div>
-    <div class="legend" style="margin-top:10px"><span><i class="ld buy"></i>매수</span><span><i class="ld sell"></i>매도</span><span><i class="ld cash"></i>입출금</span><span class="muted">날짜를 누르면 내역이 보여요</span></div>
+    <div class="legend" style="margin-top:10px"><span><i class="ld buy"></i>매수</span><span><i class="ld sell"></i>매도</span><span class="muted">날짜를 누르면 내역이 보여요</span></div>
     <div class="btnrow" style="margin-top:12px"><button class="ghost" id="ccx">닫기</button><button class="primary" id="cgo">배당 기록하기</button></div>`,()=>{
       $("#cprev").onclick=()=>monthCalSheet(prev); $("#cnext").onclick=()=>monthCalSheet(next); $("#ccx").onclick=closeSheet; $("#cgo").onclick=()=>batchSheet();
       $("#sheet").querySelectorAll("[data-cd]").forEach(c=>c.onclick=()=>daySheet(c.dataset.cd)); });

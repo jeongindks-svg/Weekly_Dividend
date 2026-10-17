@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="8.3", APP_DATE="2026-10-16", APP_NOTES="재투자 계산 제거, 매매일지를 월별·종목별로 묶어서 표시";
+const APP_VERSION="8.4", APP_DATE="2026-10-16", APP_NOTES="매매일지 일별·월별 선택, 입출금 제거, 태블릿 배치 개선";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
