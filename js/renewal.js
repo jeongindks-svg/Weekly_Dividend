@@ -94,31 +94,13 @@ const SAMPLE_DONUT = `<svg viewBox="0 0 120 120" width="120" height="120" style=
 const SAMPLE_ROWS = `<div class="srows">${["K","U","E"].map(c=>`<div><b>${c}</b><span></span><i></i></div>`).join("")}</div>`;
 
 // ---------- 주간 배당 흐름 (주마다 등락 표시) ----------
-let wdRange = 12;
-function weekFlowData(n){
-  const wk=byWeek(), m0=monday(new Date()); let out=[];
-  for(let i=n-1;i>=0;i--){ const d=new Date(m0); d.setDate(d.getDate()-7*i); const k=isoOf(d); out.push({k,v:wk.get(k)||0,cur:i===0,g:weekGoal(k)}); }
-  const fi=out.findIndex(x=>x.v>0); if(fi>0) out=out.slice(Math.min(fi,out.length-4));
-  out.forEach((x,i)=>{ const p=i>0?out[i-1].v:0; x.d=p>0?(x.v-p)/p*100:null; });
-  return out;
-}
-const dtxt=d=>d==null?"":Math.abs(d)<.5?"0%":(d>0?"+":"")+(Math.abs(d)>=1000?(d>0?"999+":"-999"):Math.round(d))+"%";
-function weekFlow(withRange=true){
-  const data=weekFlowData(wdRange), n=data.length, cur=data[n-1], prev=n>1?data[n-2]:null, vs=data.map(x=>x.v), pos=vs.filter(v=>v>0), avg=pos.length?pos.reduce((a,v)=>a+v,0)/pos.length:0;
-  const seg=`<div class="rchips" id="wdseg">${[[12,"12주"],[26,"26주"],[52,"52주"]].map(([k,l])=>`<button data-n="${k}" aria-pressed="${wdRange===k}">${l}</button>`).join("")}</div>`;
-  if(!pos.length) return `<div class="spark none" style="margin-top:12px">배당을 기록하면 주마다 늘고 줄어드는 흐름이 나와요</div>`;
-  const hasGoal=data.some(x=>x.g>0), W=400,H=170,pl=6,pr=6,pt=20,pb=22, bw=(W-pl-pr)/n, mx=Math.max(...vs,...data.map(x=>x.g||0),1)*1.12, y=v=>pt+(H-pt-pb)*(1-v/mx);
-  const step=n<=14?2:n<=26?4:8;
-  const bars=data.map((x,i)=>{ const bx=pl+i*bw+bw*.19, w=bw*.62, h=Math.max(x.v>0?3:1.5,H-pb-y(x.v)), col=x.d==null?"var(--muted)":x.d>0.5?"var(--red)":x.d<-0.5?"var(--blue)":"var(--muted)", op=x.cur?.5:(x.v>0?.9:.3);
-    const lab=x.d!=null&&i>=n-5&&x.v>0?`<text x="${bx+w/2}" y="${y(x.v)-5}" font-size="9.5" text-anchor="middle" font-weight="700" fill="${col}">${dtxt(x.d)}</text>`:"";
-    const xl=(n-1-i)%step===0?`<text x="${bx+w/2}" y="${H-7}" font-size="10" text-anchor="middle" fill="${x.cur?"var(--ink)":"var(--muted)"}" font-weight="${x.cur?700:400}">${x.cur?"이번 주":fmtD(parseD(x.k))}</text>`:"";
-    return `<g data-week="${x.k}" role="button" style="cursor:pointer"><rect x="${pl+i*bw}" y="${pt-14}" width="${bw}" height="${H-pt-pb+14}" fill="transparent"/><rect x="${bx}" y="${H-pb-h}" width="${w}" height="${h}" rx="${Math.min(5,w/2)}" fill="${col}" opacity="${op}"${x.cur?` stroke="${col}" stroke-dasharray="3 2" fill-opacity=".35"`:""}><title>${fmtD(parseD(x.k))} 주 · ${won(x.v)}${x.d!=null?` · 전주 대비 ${dtxt(x.d)}`:""}</title></rect>${lab}${xl}</g>`; }).join("");
-  const goal=hasGoal?`<polyline points="${data.map((x,i)=>x.g>0?`${(pl+i*bw+bw/2).toFixed(1)},${y(x.g).toFixed(1)}`:"").filter(Boolean).join(" ")}" fill="none" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="4 3" opacity=".8"/>`:"";
-  const dp=prev&&prev.v>0&&cur?(cur.v-prev.v)/prev.v*100:null;
-  return `<div class="wfh"><div><span class="k">이번 주</span> <b class="wfv num">${won(cur?cur.v:0)}</b></div>
-    <div class="dpill ${dp==null?"":dp>0.5?"up":dp<-0.5?"down":""}">${dp==null?"지난주 기록 없음":`지난주 대비 ${dp>0.5?"▲":dp<-0.5?"▼":"–"} ${dtxt(dp)}`}</div></div>
-    <div class="chart wfc"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="주간 받은 배당 막대 그래프"><line x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}" stroke="var(--rule)"/>
-      ${avg>0?`<line x1="${pl}" x2="${W-pr}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/><text x="${W-pr}" y="${y(avg)-4}" font-size="9.5" text-anchor="end" fill="var(--muted)">평균 ${kfmt(avg)}</text>`:""}${goal}${bars}</svg></div>${withRange?seg:""}`;
+// 주마다 받은 금액만 (옆으로 밀면 이전 주가 보여요)
+function weekFlow(){
+  const wk=byWeek(), keys=[...wk.keys()].sort(); if(!keys.length) return `<div class="spark none" style="margin-top:12px">배당을 기록하면 주마다 받은 금액이 그래프로 나와요</div>`;
+  const cur=isoOf(monday(new Date())), ks=[], vals=[], tg=[];
+  for(let k=keys[0]; k<=cur; k=addDays(k,7)){ ks.push(k); vals.push(wk.get(k)||0); tg.push(weekGoal(k)); }
+  const labels=ks.map(k=>k===cur?"이번 주":fmtD(parseD(k)));
+  return `<div class="wfh"><div><span class="k">이번 주</span> <b class="wfv num">${won(vals[vals.length-1])}</b></div><span class="k">옆으로 밀면 이전 주</span></div>`+scrollBars({labels,values:vals,target:tg.some(t=>t>0)?tg:0,H:170,keys:ks});
 }
 
 // ---------- 포트폴리오 ----------
@@ -219,9 +201,9 @@ function mixView(){
   const seg=`<div class="seg" id="mixseg" style="margin-bottom:12px">${dims.map(([k,l])=>`<button data-m="${k}" aria-pressed="${mixDim===k}">${l}</button>`).join("")}</div>`;
   const items=tally(rows,fn), warn=warnings(rows);
   const accs=tally(rows,r=>r.account).map(([a])=>{ const rs=rows.filter(r=>r.account===a), v=rs.reduce((x,r)=>x+r.v,0), c0=rs.reduce((x,r)=>x+r.r.cost,0), c=c0; return {a,v,c}; }), mx=Math.max(...accs.map(x=>Math.max(x.v,x.c)),1);
-  return `${warn.length?`<section class="card warn"><h2>집중 위험 점검</h2>${warn.map(w=>`<div class="wl">⚠ ${w}</div>`).join("")}</section>`:""}
-    <section class="card"><h2>종목 비중 <small>트리맵 · 평가금액</small></h2>${treemap(items.length&&mixDim==="ticker"?items:tally(rows,r=>r.h.ticker))}</section>
+  return `${warn.length?`<section class="card warn full"><h2>집중 위험 점검</h2>${warn.map(w=>`<div class="wl">⚠ ${w}</div>`).join("")}</section>`:""}
+    <section class="card"><h2>종목 비중 <small>트리맵 · 평가금액</small></h2>${isWide()?treemap(items.length&&mixDim==="ticker"?items:tally(rows,r=>r.h.ticker),400,430):treemap(items.length&&mixDim==="ticker"?items:tally(rows,r=>r.h.ticker))}</section>
     <section class="card"><h2>구성 분석 <small>Top 5 + 기타</small></h2>${seg}${donut(top5(items))}</section>
-    <section class="card"><h2>계좌별 <small>원금과 평가금액</small></h2>${accs.map(x=>{ const gain=x.v-x.c; return `<div class="acc"><div class="ah"><b>${esc(x.a)}</b><span class="num">${won(x.v)} <small class="${cls(gain)}">${x.c?pct(gain/x.c*100,1):""}</small></span></div>
+    <section class="card full"><h2>계좌별 <small>원금과 평가금액</small></h2>${accs.map(x=>{ const gain=x.v-x.c; return `<div class="acc"><div class="ah"><b>${esc(x.a)}</b><span class="num">${won(x.v)} <small class="${cls(gain)}">${x.c?pct(gain/x.c*100,1):""}</small></span></div>
       <div class="ab"><i class="c" style="width:${Math.min(100,Math.min(x.c,x.v)/mx*100)}%"></i><i class="g ${gain<0?"l":""}" style="width:${Math.min(100,Math.abs(gain)/mx*100)}%"></i></div></div>`; }).join("")}<div class="legend"><span><i style="background:#6b7384"></i>투자원금</span><span><i style="background:var(--red)"></i>수익</span><span><i style="background:var(--blue)"></i>손실</span></div></section>`;
 }

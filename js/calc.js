@@ -40,14 +40,14 @@ function lineChart({labels, series, H=210, labelEvery=1, fmt=kfmt, fromZero=true
       + (!s.dots&&lastI!=null&&lastI>=0?`<circle cx="${x(lastI)}" cy="${y(s.values[lastI])}" r="4" fill="${s.color}"/>`:""); }).join("");
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img">${g}${lab}${lines}</svg></div>`;
 }
-function scrollBars({labels, values, target=0, H=190}){
+function scrollBars({labels, values, target=0, H=190, keys=null}){
   const n=values.length, bw=Math.max(40,Math.ceil(300/Math.max(1,Math.min(n,7)))), W=Math.max(bw*n,300), pt=22, pb=22;
   const tg=Array.isArray(target)?target:values.map(()=>target), max=Math.max(1,...tg.map(t=>t*1.1),...values)*1.05, y=v=>pt+(H-pt-pb)*(1-v/max);
   const bars=values.map((v,i)=>{ const x=i*bw+bw*.2, w=bw*.6, h=Math.max(0,H-pb-y(v)), t=tg[i]||0, miss=t>0&&v<t;
-    return `<rect x="${x}" y="${y(v)}" width="${w}" height="${h}" rx="4" fill="var(--red)" opacity="${v>0?(miss?.5:.9):.15}"><title>${esc(labels[i])}: ${won(v)}</title></rect>`
-      +(v>0?`<text x="${x+w/2}" y="${y(v)-5}" font-size="11" text-anchor="middle" fill="var(--ink)">${kfmt(v)}</text>`:"")
+    return `<g${keys?` data-week="${keys[i]}" role="button" style="cursor:pointer"`:""}><rect x="${i*bw}" y="${pt-10}" width="${bw}" height="${H-pt-pb+10}" fill="transparent"/><rect x="${x}" y="${y(v)}" width="${w}" height="${h}" rx="4" fill="var(--red)" opacity="${v>0?(miss?.5:.9):.15}"><title>${esc(labels[i])}: ${won(v)}</title></rect>`
+      +(v>0?`<text x="${x+w/2}" y="${y(v)-5}" font-size="11" text-anchor="middle" fill="var(--ink)">${HIDE?"••":v<1e5?Math.round(v).toLocaleString():v<1e8?+(v/1e4).toFixed(1)+"만":+(v/1e8).toFixed(1)+"억"}</text>`:"")
       +(t>0?`<line x1="${x-bw*.08}" x2="${x+w+bw*.08}" y1="${y(t)}" y2="${y(t)}" stroke="var(--blue)" stroke-width="2.5" stroke-linecap="round"/>`:"")
-      +`<text x="${x+w/2}" y="${H-6}" font-size="11" text-anchor="middle" fill="var(--muted)">${esc(labels[i])}</text>`; }).join("");
+      +`<text x="${x+w/2}" y="${H-6}" font-size="11" text-anchor="middle" fill="var(--muted)">${esc(labels[i])}</text></g>`; }).join("");
   return `<div class="hscroll" id="hs"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${bars}</svg></div>`+(tg.some(t=>t>0)?`<div class="legend"><span><i style="background:var(--blue)"></i>주간 목표</span></div>`:"");
 }
 const PALETTE=["var(--red)","var(--blue)","#E0A21B","#3E9C6B","#8B5CC7","#E26A2C","#2BA3B5","#9A6B4F"];

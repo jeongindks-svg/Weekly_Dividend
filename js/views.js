@@ -19,11 +19,18 @@ function divAlerts(){
   }
   return out.sort((x,y)=>Math.abs(y.ch)-Math.abs(x.ch));
 }
+// 원금 대비 배당률 (세후): 평단 대비 1회 배당의 비율
+function yoc(e){ const a=avgOf(e.ticker,e.currency); return a>0?e.perShare*(1-(+e.taxRate||0)/100)/a*100:null; }
+// 주배당 종목은 전부: 이전 4회 평균 → 최근 지급의 원금 대비 배당률
 function alertCard(){
-  const al=divAlerts(); if(!al.length) return "";
-  const ps=(v,c)=>c==="KRW"?won(v):"$"+fmtPs(+v.toFixed(4));
-  return `<section class="card"><h2>배당 변동 알림 <small>최근 지급 vs 이전 4회 평균 · ±${+S.settings.divAlertPct||10}% 이상</small></h2>
-    ${al.map(a=>`<div class="lrow"><div><div class="t">${esc(a.t)}</div><div class="s num">${ps(a.last.perShare,a.last.currency)} (이전 평균 ${ps(a.avg,a.last.currency)})</div></div><div class="r"><div class="p ${a.ch>0?"up":"down"}" style="font-size:16px">${a.ch>0?"▲ 증액":"▼ 삭감"} ${Math.abs(a.ch).toFixed(1)}%</div></div></div>`).join("")}</section>`;
+  const rows=[];
+  for(const h of liveHoldings().filter(h=>(h.freq||"주배당")==="주배당")){
+    const es=S.entries.filter(e=>e.ticker===h.ticker).sort((a,c)=>c.date.localeCompare(a.date)||(c.created||0)-(a.created||0)); if(!es.length) continue;
+    const y1=yoc(es[0]), ps=es.slice(1,5).map(yoc).filter(x=>x!=null), y0=ps.length?ps.reduce((a,x)=>a+x,0)/ps.length:null;
+    rows.push({t:h.ticker,y1,y0,d:y1!=null&&y0!=null?y1-y0:null}); }
+  if(!rows.length) return "";
+  rows.sort((a,b)=>(b.y1??-1)-(a.y1??-1));
+  return `<section class="card"><h2>주배당률 <small>원금 대비 · 세후 · 이전 평균 → 최근</small></h2>${rows.map(r=>`<div class="lrow"><div class="t">${esc(r.t)}</div><div class="r">${r.y1==null?`<span class="muted" style="font-size:13px">평단을 넣어 주세요</span>`:`<div class="p num" style="font-size:16px">${r.y0!=null?`<span class="muted" style="font-weight:500">${r.y0.toFixed(2)}% → </span>`:""}${r.y1.toFixed(2)}%${r.d!=null&&Math.abs(r.d)>=0.005?` <span class="dpill ${r.d>0?"up":"down"}" style="padding:2px 8px;font-size:11.5px">${r.d>0?"▲":"▼"} ${Math.abs(r.d).toFixed(2)}%p</span>`:""}</div>`}</div></div>`).join("")}</section>`;
 }
 // ---- 주차별(달력 느낌): 금액이 큰 종목 3개 + 기타 ----
 function weekInfo(es,b){ const by={}; let total=0; for(const e of es){ const a=amtOf(e,b); by[e.ticker]=(by[e.ticker]||0)+a; total+=a; }
@@ -67,7 +74,7 @@ function weekDaysCard(){
   const cell=x=>{ const gt=[...new Set(x.got.map(e=>e.ticker))], all=[...gt.map(t=>({t,k:"g"})),...x.exp.map(o=>({t:o.h.ticker,k:"e"}))];
     const chips=all.slice(0,2).map(c=>`<i class="${c.k}">${tkb(c.t)}</i>`).join("")+(all.length>2?`<i class="m">+${all.length-2}</i>`:"");
     return `<button class="wd${x.D===today?" today":""}${x.D>today?" fut":""}" data-day="${x.D}" aria-label="${fmtD(x.d)} ${DOWN[x.dow]}요일"><span class="dw">${DOWN[x.dow]}</span><span class="dn">${x.d.getDate()}</span><span class="da${x.recv?" got":""}">${x.recv?kfmt(x.recv):(x.expAmt?"~"+kfmt(x.expAmt):"")}</span><span class="dt">${chips}</span></button>`; };
-  return `<section class="card"><h2>이번 주 일정 <small>${fmtD(days[0].d)} – ${fmtD(days[6].d)}</small></h2>
+  return `<section class="card wkcard"><h2>이번 주 일정 <small>${fmtD(days[0].d)} – ${fmtD(days[6].d)}</small></h2>
     <div class="wdays">${days.map(cell).join("")}</div>
     <div class="wsum"><span>받은 배당 <b class="num">${won(tot)}</b></span>${left>0?`<span>남은 예정 <b class="num">~${won(left)}</b></span>`:""}</div>
     ${noDay.length?`<p class="muted" style="font-size:12px;margin:8px 0 0">${noDay.slice(0,3).map(h=>esc(h.ticker)).join(", ")}${noDay.length>3?" 외":""} 종목의 지급 요일을 정하면 입금 예정이 표시돼요 (보유 탭 → 종목).</p>`:""}</section>`;
@@ -97,6 +104,7 @@ function viewHome(){
 
 function viewLog(){
   const list=sorted();
+  const prevY={}; { const by={}; for(const e of [...S.entries].sort((a,c)=>a.date.localeCompare(c.date)||(a.created||0)-(c.created||0))){ const l=by[e.ticker]; prevY[e.id]=l?yoc(l):null; by[e.ticker]=e; } }
   if(!list.length) return `<div class="card empty">기록이 없어요.<br>‘+ 이번 주 배당’을 눌러 보유 종목의 배당을 한 번에 기록해 보세요.</div>`;
   const DOW="일월화수목금토";
   const seg=`<div class="seg" id="lseg" style="margin-bottom:12px"><button data-m="list" aria-pressed="${logMode==="list"}">목록</button><button data-m="table" aria-pressed="${logMode==="table"}">표</button></div>`;
@@ -109,19 +117,19 @@ function viewLog(){
       const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0);
       rows+=`<tr class="wkh"><td colspan="6"><b style="color:var(--ink)">${weekLabel(k,true)}</b> · ${range(k)} · ${arr.length}건 · 합계 <b class="amt">${won(sum)}</b></td></tr>`;
       rows+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
-        return `<tr data-edit="${e.id}"><td><b>${esc(e.ticker)}</b><div class="s">${fmtD(d)} (${DOW[d.getDay()]})</div></td><td>${u?"$"+fmtPs(e.perShare):won(e.perShare)}</td><td>${qty(e.shares)}</td><td class="amt">${won(c.netKRW)}</td><td>${c.yield!=null?c.yield.toFixed(2)+"%":"-"}</td></tr>`; }).join("");
+        return `<tr data-edit="${e.id}"><td><b>${esc(e.ticker)}</b><div class="s">${fmtD(d)} (${DOW[d.getDay()]})</div></td><td>${yoc(e)!=null?yoc(e).toFixed(2)+"%":"-"}</td><td>${qty(e.shares)}</td><td class="amt">${won(c.netKRW)}</td><td>${yoc(e)!=null&&prevY[e.id]!=null?(yoc(e)-prevY[e.id]>=0?"+":"")+(yoc(e)-prevY[e.id]).toFixed(2)+"%p":"-"}</td></tr>`; }).join("");
     }
-    return seg+`<div class="card" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>주당</th><th>수량</th><th>세후(원)</th><th>배당률</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+add;
+    return seg+`<div class="card" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>원금 대비</th><th>수량</th><th>세후(원)</th><th>변화</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+add;
   }
   let html=seg;
   for(const [k,arr] of groups){
     const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0);
     html+=`<div class="gh2"><span>${weekLabel(k,true)} <span class="muted">${range(k)}</span></span><b class="num">${won(sum)}</b></div><section class="card" style="padding:4px 16px">`;
     html+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
-      const sub=[`${fmtD(d)}(${DOW[d.getDay()]})`,`${u?"$"+fmtPs(e.perShare):won(e.perShare)} × ${qty(e.shares)}주`]; if(u&&e.fxPending) sub.push("환율 대기"); if(e.memo) sub.push(esc(e.memo));
+      const y1=yoc(e), y0=prevY[e.id], sub=[`${fmtD(d)}(${DOW[d.getDay()]})`,`${qty(e.shares)}주`]; if(y1!=null) sub.push(y0!=null?`${y0.toFixed(2)}% → ${y1.toFixed(2)}%`:`${y1.toFixed(2)}%`); if(u&&e.fxPending) sub.push("환율 대기"); if(e.memo) sub.push(esc(e.memo));
       return `<div class="hl" data-edit="${e.id}"><div class="av" aria-hidden="true">${esc(e.ticker.slice(0,3))}</div>
         <div class="m"><div class="t">${esc(e.ticker)}</div><div class="s num">${sub.join(" · ")}</div></div>
-        <div class="rt"><div class="t num">${won(c.netKRW)}</div><div class="s num muted">${c.yield!=null?c.yield.toFixed(2)+"%":(u&&S.settings.tdKey&&!e.priceFail?"…":"")}</div></div></div>`; }).join("");
+        <div class="rt"><div class="t num">${won(c.netKRW)}</div><div class="s num ${y1!=null&&y0!=null&&Math.abs(y1-y0)>=0.005?(y1>y0?"up":"down"):"muted"}">${y1!=null&&y0!=null&&Math.abs(y1-y0)>=0.005?(y1>y0?"▲ ":"▼ ")+Math.abs(y1-y0).toFixed(2)+"%p":""}</div></div></div>`; }).join("");
     html+=`</section>`;
   }
   return html+add;
@@ -336,8 +344,7 @@ function viewSet(){
   const grp=(id,title,status,body)=>`<details class="sgrp" data-g="${id}"${SETOPEN.has(id)?" open":""}><summary><span class="gt">${title}</span><span class="gs">${status}</span></summary><div class="sbody">${body}</div></details>`;
   const goal=`${num("sgoal","기본 월 목표 (원)",st.goalMonthly||"","1000","예: 500000")}
     ${num("pby","기준 주배당 (%)",st.baseYield,"0.01")}
-    ${num("sda","배당 변동 알림 기준 (%)",st.divAlertPct,"1")}
-    <p class="muted" style="margin:4px 0 12px;font-size:12.5px">월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에 쓰여요. 알림 기준은 최근 지급이 평소보다 이만큼 달라지면 알려 줘요.</p>`;
+    <p class="muted" style="margin:4px 0 12px;font-size:12.5px">월 목표는 계획이 없는 달에, 기준 주배당은 배당률 그래프의 기준선에 쓰여요.</p>`;
   const fx=`<div class="srow"><div><div class="t num">${st.fx.toLocaleString()}원 / $1</div><div class="s">${st.fxDate?`${fmtD(parseD(st.fxDate))} 자동 갱신 · `:""}배당은 입금일 환율로 계산해요</div></div><button class="small" id="fxRef">새로고침</button></div>
     <div class="srow"><label for="sauto">환율 자동 연동</label><input type="checkbox" id="sauto" style="width:22px;height:22px" ${st.autoFx?"checked":""}></div>
     <div id="manualFx" ${st.autoFx?"hidden":""}>${num("sfx","직접 입력 환율",st.fx,"0.01")}</div>
@@ -391,7 +398,7 @@ create policy "own delete" on public.app_state for delete to authenticated using
 const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"chart",set:"set"};
 function render(){
   const v=$("#view");
-  v.className = "tab-"+tab+(tab==="log"?(logMode==="table"?" one":" one list"):"");
+  v.className = "tab-"+tab+(tab==="log"?(logMode==="table"?" one":" one list"):"")+(tab==="hold"?" colw":"");
   v.innerHTML = tab==="home"?viewHome():tab==="log"?divHead()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?divHead()+divSeg("plan")+viewPlan():viewSet();
   const nv=NAVOF[tab]||tab;
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
