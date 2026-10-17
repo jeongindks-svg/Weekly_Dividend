@@ -175,7 +175,6 @@ function holdSheet(id){
         <div><label class="f" for="ltp">총 매수금액 <span class="hcur"></span></label><input id="ltp" type="number" inputmode="decimal" step="any" placeholder="수량 전체 가격"></div></div>
       <div id="ltfw"><label class="f" for="ltf">매수 환율 (원/$, 선택)</label><input id="ltf" type="number" inputmode="decimal" step="any" placeholder="모르면 비워 두기"></div>
       <label class="f" for="ltm">매수 사유 메모 (선택)</label><input id="ltm" maxlength="80" placeholder="예: 하락 시 분할 매수">
-      <label class="chk" style="margin-top:10px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="ltr"> 배당금으로 재투자해서 산 주식 <span class="muted" style="font-size:12px">(재투자 성과 계산에 써요)</span></label>
       <div class="btnrow" style="margin-top:8px"><button type="button" class="small" id="ladd">+ 매수 추가</button></div>
       <div class="calc num" id="hlsum" style="margin-top:8px"></div>
       <div id="hovbox" hidden><label class="f" for="hov">증권사 앱 평단에 맞추기 (선택) <span class="hcur"></span></label><input id="hov" type="number" inputmode="decimal" step="any" placeholder="증권사 앱에 보이는 1주 평단">
@@ -191,24 +190,21 @@ function holdSheet(id){
     <div class="btnrow" style="margin-top:14px">${h?`<button class="danger" id="hdel">삭제</button><button id="hsell">매도</button>`:""}<button class="ghost" id="hcx">취소</button><button class="primary" id="hsv">저장</button></div>`, ()=>{
       const r4=(n,d)=>Math.round(n*10**d)/10**d, mine=["#hs","#hau","#haw"];
       const drawLots=()=>{ const us=cur!=="KRW"; $("#ltfw").hidden=!us;
-        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>l.sell?`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date} <span class="tag sell">매도</span></div><div class="s num">${qty(-l.shares)}주 매도 · 매매일지에서 관리해요</div></div></div>`:`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}${l.re?` <span class="tag re">재투자</span>`:""}${l.memo?` <span class="muted" style="font-weight:400;font-size:12px">· ${esc(l.memo)}</span>`:""}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
+        $("#hlots").innerHTML=[...lots].sort((a,c)=>a.date.localeCompare(c.date)).map(l=>l.sell?`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date} <span class="tag sell">매도</span></div><div class="s num">${qty(-l.shares)}주 매도 · 매매일지에서 관리해요</div></div></div>`:`<div class="lrow" style="padding:8px 0"><div><div class="t">${l.date}${l.memo?` <span class="muted" style="font-weight:400;font-size:12px">· ${esc(l.memo)}</span>`:""}</div><div class="s num">${qty(l.shares)}주 · 총 ${us?"$"+fmtPs(lotBase(l)):won(lotBase(l))} (1주 ${us?"$"+fmtPs(lotBase(l)/l.shares):won(lotBase(l)/l.shares)})${us&&+l.fx?` · 환율 ${(+l.fx).toLocaleString()}원`:""}</div></div><div style="display:flex;gap:6px"><button type="button" class="small ghost" data-le="${l.id}">수정</button><button type="button" class="small ghost" data-ld="${l.id}">삭제</button></div></div>`).join("");
         const ds=derive(); $("#hlsum").innerHTML=lots.length?`매수 ${lots.filter(l=>!l.sell).length}회 · 합계 ${qty(ds.sh)}주 · 총 ${us?"$"+fmtPs(+ds.cp.toFixed(2)):won(ds.cp)} · 1주 평단 ${us?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}<br>${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중 (기록상 평단 ${us?"$"+fmtPs(+ds.raw.toFixed(4)):won(ds.raw)})`:""}<br>저장하면 보유 수량과 평단이 이 기록으로 계산돼요.`:"";
         $("#hovbox").hidden=!lots.length; if(document.activeElement!==$("#hov")) $("#hov").value=scale!==1?r4(ds.avg,4):"";
         const d=derive(), on=lots.length>0; mine.forEach(i=>$(i).readOnly=on);
         if(on){ $("#hs").value=r4(d.sh,6); if(us){ $("#hau").value=r4(d.avg,4); if(document.activeElement!==$("#hak")) $("#hak").value=d.avgK?r4(d.avgK,2):""; } else $("#haw").value=r4(d.avg,2); } };
-      // 배당 입금일 일주일 안에 산 매수는 ‘재투자’로 미리 체크해 줘요 (직접 바꿀 수 있어요)
-      let reTouched=false; const autoRe=()=>{ if(reTouched) return; const t=$("#ht").value.trim().toUpperCase(), d=$("#ltd").value; $("#ltr").checked=!!(t&&d&&S.entries.some(e=>e.ticker===t&&e.date<=d&&e.date>=addDays(d,-7))); };
-      $("#ltr").onchange=()=>{ reTouched=true; }; $("#ltd").addEventListener("input",autoRe); $("#ltd").addEventListener("change",autoRe); $("#ht").addEventListener("change",autoRe); autoRe();
       $("#hak").addEventListener("input",()=>{ if(!lots.length||cur==="KRW") return; const K=+$("#hak").value, avg=derive().avg; fxAvg=K>0&&avg>0?K/avg:0; });
       $("#hov").addEventListener("input",()=>{ const v=+$("#hov").value, raw=derive().raw; scale=v>0&&raw>0?v/raw:1;
         const ds=derive(); $("#hlsum").innerHTML=`매수 ${lots.filter(l=>!l.sell).length}회 · 합계 ${qty(ds.sh)}주 · 1주 평단 ${cur!=="KRW"?"$"+fmtPs(+ds.avg.toFixed(4)):won(ds.avg)}${scale!==1?`<br>증권사 평단에 맞춰 ×${scale.toFixed(4)} 보정 중`:""}`; if(cur!=="KRW"){ $("#hau").value=r4(ds.avg,4); $("#hak").value=ds.avgK?r4(ds.avgK,2):""; } else $("#haw").value=r4(ds.avg,2); });
       $("#hlots").onclick=ev=>{ const b=ev.target.closest("[data-ld]"), e=ev.target.closest("[data-le]");
         if(b){ lots=lots.filter(l=>l.id!==b.dataset.ld); drawLots(); upd(); }
         else if(e){ const l=lots.find(x=>x.id===e.dataset.le); if(!l) return; lots=lots.filter(x=>x!==l);
-          $("#ltd").value=l.date; $("#lts").value=l.shares; $("#ltp").value=lotBase(l); $("#ltf").value=+l.fx||""; $("#ltm").value=l.memo||""; $("#ltr").checked=!!l.re; reTouched=true; drawLots(); upd(); toast("위 칸에서 고친 뒤 ‘+ 매수 추가’를 눌러 주세요"); } };
+          $("#ltd").value=l.date; $("#lts").value=l.shares; $("#ltp").value=lotBase(l); $("#ltf").value=+l.fx||""; $("#ltm").value=l.memo||""; drawLots(); upd(); toast("위 칸에서 고친 뒤 ‘+ 매수 추가’를 눌러 주세요"); } };
       $("#ladd").onclick=()=>{ const d=$("#ltd").value, s=+$("#lts").value, t=+$("#ltp").value, f=+$("#ltf").value||0;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!(s>0)||!(t>0)){ toast("매수일·수량·총 매수금액을 입력해 주세요"); return; }
-        lots.push({id:uid(),date:d,shares:s,total:t,price:t/s,fx:cur!=="KRW"?f:0,memo:$("#ltm").value.trim(),re:$("#ltr").checked}); $("#lts").value=""; $("#ltp").value=""; $("#ltf").value=""; $("#ltm").value=""; reTouched=false; autoRe(); drawLots(); upd(); };
+        lots.push({id:uid(),date:d,shares:s,total:t,price:t/s,fx:cur!=="KRW"?f:0,memo:$("#ltm").value.trim()}); $("#lts").value=""; $("#ltp").value=""; $("#ltf").value=""; $("#ltm").value=""; drawLots(); upd(); };
       const upd=()=>{ const us=cur!=="KRW", fx=S.settings.fx; $("#husd").hidden=!us; $("#hkrw").hidden=us;
         document.querySelectorAll(".hcur").forEach(x=>x.textContent=`(${us?"$":"원"})`);
         const aU=+$("#hau").value||0, aK=+$("#hak").value||0, sh=+$("#hs").value||0, t=$("#ht").value.trim().toUpperCase(), pv=$("#hpv");
@@ -303,7 +299,7 @@ function planGenSheet(){
     <div class="grid2"><div><label class="f" for="gpr">시작 원금</label><input id="gpr" type="number" inputmode="decimal" step="any" value="${pr0}"></div>
     <div><label class="f" for="gin">매달 추가 투자</label><input id="gin" type="number" inputmode="decimal" step="any" value="0"></div></div>
     <div class="grid2"><div><label class="f" for="gy">기준 주배당 (%)</label><input id="gy" type="number" inputmode="decimal" step="0.01" value="${S.settings.baseYield}"></div>
-    <div><label class="f" for="gre">배당 재투자 비율 (%)</label><input id="gre" type="number" inputmode="decimal" step="1" min="0" max="100" value="${S.settings.reinvestPct}"></div></div>
+    <div><label class="f" for="gre">배당 재투자 비율 (%) <span class="muted">· 0이면 반영 안 함</span></label><input id="gre" type="number" inputmode="decimal" step="1" min="0" max="100" value="0"></div></div>
     <div class="preview num" id="gpv" style="font-size:13px"></div>
     <div class="btnrow" style="margin-top:14px"><button class="ghost" id="gcx">취소</button><button class="primary" id="gsv">만들기</button></div>`,()=>{
     const rows=()=>{ const ym0=$("#gym").value, n=Math.min(60,Math.max(1,+$("#gn").value||0)), inv=+$("#gin").value||0, y=+$("#gy").value||0, re=Math.min(100,Math.max(0,+$("#gre").value||0))/100;
