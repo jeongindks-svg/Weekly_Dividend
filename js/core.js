@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="9.1", APP_DATE="2026-10-16", APP_NOTES="주별 받은 금액 그래프(밀어서 이전 주), 주배당률 변화, 태블릿 대칭";
+const APP_VERSION="9.2", APP_DATE="2026-10-16", APP_NOTES="종목명 4글자, 현재 배당률 강조, 월별 금액 그래프, 기록은 표만";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

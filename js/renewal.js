@@ -103,6 +103,15 @@ function weekFlow(){
   return `<div class="wfh"><div><span class="k">이번 주</span> <b class="wfv num">${won(vals[vals.length-1])}</b></div><span class="k">옆으로 밀면 이전 주</span></div>`+scrollBars({labels,values:vals,target:tg.some(t=>t>0)?tg:0,H:170,keys:ks});
 }
 
+// 월별: 주별과 같은 모양 (금액만, 옆으로 밀어서 이전 달)
+function monthFlow(){
+  const ents=S.entries; if(!ents.length) return `<div class="spark none" style="margin-top:12px">배당을 기록하면 달마다 받은 금액이 나와요</div>`;
+  const first=ents.map(e=>e.date).sort()[0].slice(0,7), now=new Date(), last=ymOf(now.getFullYear(),now.getMonth()), b=basis(), ks=[], vals=[], tg=[], labels=[];
+  let yy=+first.slice(0,4), mm=+first.slice(5,7)-1;
+  while(ymOf(yy,mm)<=last){ const ym=ymOf(yy,mm); ks.push(ym); vals.push(actualYm(ym,b)); tg.push(goalFor(yy,mm)); labels.push(mm===0||!labels.length?`${String(yy).slice(2)}.${mm+1}월`:`${mm+1}월`); if(++mm>11){ mm=0; yy++; } }
+  return scrollBars({labels,values:vals,target:tg.some(t=>t>0)?tg:0,H:170,keys:ks,attr:"data-month"});
+}
+
 // ---------- 포트폴리오 ----------
 let holdComp = "region", holdSort = "weight", holdFilter = "all", holdQ = "", holdGroup = "none", holdCompact = false; const holdShut = new Set();
 function bars(entries,total){
