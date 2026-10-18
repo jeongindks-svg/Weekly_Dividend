@@ -30,7 +30,7 @@ function alertCard(){
     rows.push({t:h.ticker,y1,y0,d:y1!=null&&y0!=null?y1-y0:null}); }
   if(!rows.length) return "";
   rows.sort((a,b)=>(b.y1??-1)-(a.y1??-1));
-  return `<section class="card"><h2>주배당률 <small>원금 대비 · 세후 · 이전 평균 → 최근</small></h2>${rows.map(r=>`<div class="lrow"><div class="t">${esc(r.t)}</div><div class="r">${r.y1==null?`<span class="muted" style="font-size:13px">평단을 넣어 주세요</span>`:`<div class="p num" style="font-size:16px">${r.y0!=null?`<span class="muted" style="font-weight:500">${r.y0.toFixed(2)}% → </span>`:""}${r.y1.toFixed(2)}%${r.d!=null&&Math.abs(r.d)>=0.005?` <span class="dpill ${r.d>0?"up":"down"}" style="padding:2px 8px;font-size:11.5px">${r.d>0?"▲":"▼"} ${Math.abs(r.d).toFixed(2)}%p</span>`:""}</div>`}</div></div>`).join("")}</section>`;
+  return `<section class="card"><h2>주배당률 <small>원금 대비 · 세후</small></h2>${rows.map(r=>`<div class="lrow"><div class="t">${esc(r.t)}</div><div class="r">${r.y1==null?`<span class="muted" style="font-size:13px">평단을 넣어 주세요</span>`:`<div class="p num" style="font-size:20px;letter-spacing:-.02em">${r.y1.toFixed(2)}%</div>${r.y0!=null?`<div class="s num yprev">이전 ${r.y0.toFixed(2)}%${r.d!=null&&Math.abs(r.d)>=0.005?` <span class="${r.d>0?"up":"down"}">${r.d>0?"▲":"▼"} ${Math.abs(r.d).toFixed(2)}%p</span>`:""}</div>`:""}`}</div></div>`).join("")}</section>`;
 }
 // ---- 주차별(달력 느낌): 금액이 큰 종목 3개 + 기타 ----
 function weekInfo(es,b){ const by={}; let total=0; for(const e of es){ const a=amtOf(e,b); by[e.ticker]=(by[e.ticker]||0)+a; total+=a; }
@@ -66,7 +66,7 @@ function dayInfo(D){
   for(const h of S.holdings){ if(!isDivStock(h)||(h.freq||"주배당")!=="주배당") continue; if(!payDaysOf(h).includes(dow)) continue; if(got.some(e=>e.ticker===h.ticker)) continue; exp.push({h,amt:expectedFor(h)}); }
   return {D,d,dow,got,recv,exp,expAmt:exp.reduce((a,x)=>a+(x.amt||0),0)};
 }
-const tkb=t=>esc(String(t).slice(0,3));
+const tkb=t=>esc(String(t).slice(0,4));
 function weekDaysCard(){
   const m=monday(new Date()), today=todayStr(), days=Array.from({length:7},(_,i)=>dayInfo(isoOf(new Date(m.getFullYear(),m.getMonth(),m.getDate()+i))));
   const weekly=S.holdings.filter(h=>isDivStock(h)&&(h.freq||"주배당")==="주배당"), noDay=weekly.filter(h=>!payDaysOf(h).length);
@@ -107,32 +107,19 @@ function viewLog(){
   const prevY={}; { const by={}; for(const e of [...S.entries].sort((a,c)=>a.date.localeCompare(c.date)||(a.created||0)-(c.created||0))){ const l=by[e.ticker]; prevY[e.id]=l?yoc(l):null; by[e.ticker]=e; } }
   if(!list.length) return `<div class="card empty">기록이 없어요.<br>‘+ 이번 주 배당’을 눌러 보유 종목의 배당을 한 번에 기록해 보세요.</div>`;
   const DOW="일월화수목금토";
-  const seg=`<div class="seg" id="lseg" style="margin-bottom:12px"><button data-m="list" aria-pressed="${logMode==="list"}">목록</button><button data-m="table" aria-pressed="${logMode==="table"}">표</button></div>`;
   const add=`<div class="btnrow" style="margin-top:14px"><button id="addOne" class="ghost">개별 기록 추가</button><button id="csvLog" class="ghost">CSV 내보내기</button></div>`;
   const groups=new Map(); for(const e of list){ const k=weekKey(e.date); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(e); }
   const range=k=>{ const m=parseD(k), end=new Date(m); end.setDate(end.getDate()+6); return `${fmtD(m)} – ${fmtD(end)}`; };
-  if(logMode==="table"){
+  {
     let rows="";
     for(const [k,arr] of groups){
       const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0);
-      rows+=`<tr class="wkh"><td colspan="6"><b style="color:var(--ink)">${weekLabel(k,true)}</b> · ${range(k)} · ${arr.length}건 · 합계 <b class="amt">${won(sum)}</b></td></tr>`;
+      rows+=`<tr class="wkh"><td colspan="5"><b style="color:var(--ink)">${weekLabel(k,true)}</b> · ${range(k)} · ${arr.length}건 · 합계 <b class="amt">${won(sum)}</b></td></tr>`;
       rows+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
         return `<tr data-edit="${e.id}"><td><b>${esc(e.ticker)}</b><div class="s">${fmtD(d)} (${DOW[d.getDay()]})</div></td><td>${yoc(e)!=null?yoc(e).toFixed(2)+"%":"-"}</td><td>${qty(e.shares)}</td><td class="amt">${won(c.netKRW)}</td><td>${yoc(e)!=null&&prevY[e.id]!=null?(yoc(e)-prevY[e.id]>=0?"+":"")+(yoc(e)-prevY[e.id]).toFixed(2)+"%p":"-"}</td></tr>`; }).join("");
     }
-    return seg+`<div class="card" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>원금 대비</th><th>수량</th><th>세후(원)</th><th>변화</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+add;
+    return `<div class="card full" style="padding:0"><div class="tbl ltbl"><table><thead><tr><th>종목 · 입금일</th><th>원금 대비</th><th>수량</th><th>세후(원)</th><th>변화</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+add;
   }
-  let html=seg;
-  for(const [k,arr] of groups){
-    const sum=arr.reduce((a,e)=>a+calc(e).netKRW,0);
-    html+=`<div class="gh2"><span>${weekLabel(k,true)} <span class="muted">${range(k)}</span></span><b class="num">${won(sum)}</b></div><section class="card" style="padding:4px 16px">`;
-    html+=arr.map(e=>{ const c=calc(e), u=e.currency!=="KRW", d=parseD(e.date);
-      const y1=yoc(e), y0=prevY[e.id], sub=[`${fmtD(d)}(${DOW[d.getDay()]})`,`${qty(e.shares)}주`]; if(y1!=null) sub.push(y0!=null?`${y0.toFixed(2)}% → ${y1.toFixed(2)}%`:`${y1.toFixed(2)}%`); if(u&&e.fxPending) sub.push("환율 대기"); if(e.memo) sub.push(esc(e.memo));
-      return `<div class="hl" data-edit="${e.id}"><div class="av" aria-hidden="true">${esc(e.ticker.slice(0,3))}</div>
-        <div class="m"><div class="t">${esc(e.ticker)}</div><div class="s num">${sub.join(" · ")}</div></div>
-        <div class="rt"><div class="t num">${won(c.netKRW)}</div><div class="s num ${y1!=null&&y0!=null&&Math.abs(y1-y0)>=0.005?(y1>y0?"up":"down"):"muted"}">${y1!=null&&y0!=null&&Math.abs(y1-y0)>=0.005?(y1>y0?"▲ ":"▼ ")+Math.abs(y1-y0).toFixed(2)+"%p":""}</div></div></div>`; }).join("");
-    html+=`</section>`;
-  }
-  return html+add;
 }
 
 function holdBanner(){
@@ -194,8 +181,7 @@ function viewChart(modeOverride,noSeg){
     : `<section class="card"><div class="muted">계획 탭에서 <b>월별 목표</b>를 정하면 받은 금액과 목표를 그래프로 비교할 수 있어요.</div><div class="btnrow" style="margin-top:10px"><button id="goPlan">계획 탭으로</button></div></section>`;
   let body="";
   if(mode==="month"){
-    body=`<section class="card"><h2>${y}년 월별 배당 </h2>${barChart({labels:months.map((_,i)=>(i+1)+"월"),values:months,target:hasGoal?goals:0})}
-      <div class="legend"><span><i style="background:var(--red)"></i>받은 배당</span>${hasGoal?`<span><i style="background:var(--blue)"></i>그달 목표</span><span>흐린 막대: 목표 미달</span>`:""}</div></section>`;
+    body=`<section class="card"><h2>월별 받은 배당 <small>옆으로 밀면 이전 달</small></h2>${monthFlow()}</section>`;
   } else if(mode==="week"){
     body=`<section class="card"><h2>주간 배당 흐름 <small>막대를 누르면 내역</small></h2>${weekFlow()}</section>`;
   } else {
@@ -206,7 +192,7 @@ function viewChart(modeOverride,noSeg){
     body=`<section class="card"><h2>${y}년 누적 배당 <small>${basisName()} ${won(months.reduce((a,v)=>a+v,0))}</small></h2>${lineChart({labels,series,labelEvery:2})}
       <div class="legend"><span><i style="background:var(--red)"></i>실제 누적</span>${hasGoal?`<span><i style="background:var(--blue)"></i>목표 누적</span>`:""}</div></section>`;
   }
-  return mode==="week"?seg+body+goalCard:seg+goalCard+body;
+  return mode==="week"||mode==="month"?seg+body+goalCard:seg+goalCard+body;
 }
 
 function yearOverview(){
@@ -398,7 +384,7 @@ create policy "own delete" on public.app_state for delete to authenticated using
 const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"chart",set:"set"};
 function render(){
   const v=$("#view");
-  v.className = "tab-"+tab+(tab==="log"?(logMode==="table"?" one":" one list"):"")+(tab==="hold"?" colw":"");
+  v.className = "tab-"+tab+(tab==="log"?" one":"")+(tab==="hold"?" colw":"");
   v.innerHTML = tab==="home"?viewHome():tab==="log"?divHead()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?divHead()+divSeg("plan")+viewPlan():viewSet();
   const nv=NAVOF[tab]||tab;
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
