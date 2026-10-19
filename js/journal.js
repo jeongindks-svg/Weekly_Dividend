@@ -5,7 +5,7 @@
 // 매도하면 그 종목의 lots에 음수 수량(sell:true)을 한 줄 넣어서 수량·원금 계산이 그대로 맞아요(평균단가법).
 
 let holdMode = "list", jFilter = "all", jView = "month";
-const holdSeg = a => `<div class="pills" id="hmode">${[["list","보유"],["trade","매매일지"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
+const holdSeg = a => `<div class="pills" id="hmode">${[["list","보유"],["asset","자산"],["mix","비중"],["trade","매매일지"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
 const groupYm = (items, fn) => { const m=new Map(); for(const x of items){ const k=fn(x).slice(0,7); if(!m.has(k)) m.set(k,[]); m.get(k).push(x); } return [...m]; };
 const ymTitle = k => { const [y,m]=k.split("-"); return `${y}년 ${+m}월`; };
 

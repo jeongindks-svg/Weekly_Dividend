@@ -76,7 +76,7 @@ function weekDaysCard(){
     return `<button class="wd${x.D===today?" today":""}${x.D>today?" fut":""}" data-day="${x.D}" aria-label="${fmtD(x.d)} ${DOWN[x.dow]}요일"><span class="dw">${DOWN[x.dow]}</span><span class="dn">${x.d.getDate()}</span><span class="da${x.recv?" got":""}">${x.recv?kfmt(x.recv):(x.expAmt?"~"+kfmt(x.expAmt):"")}</span><span class="dt">${chips}</span></button>`; };
   return `<section class="card wkcard"><h2>이번 주 일정 <small>${fmtD(days[0].d)} – ${fmtD(days[6].d)}</small></h2>
     <div class="wdays">${days.map(cell).join("")}</div>
-    <div class="wsum"><span>받은 배당 <b class="num">${won(tot)}</b></span>${left>0?`<span>남은 예정 <b class="num">~${won(left)}</b></span>`:""}</div>
+    ${left>0?`<div class="wsum"><span>남은 예정 <b class="num">~${won(left)}</b></span></div>`:""}
     ${noDay.length?`<p class="muted" style="font-size:12px;margin:8px 0 0">${noDay.slice(0,3).map(h=>esc(h.ticker)).join(", ")}${noDay.length>3?" 외":""} 종목의 지급 요일을 정하면 입금 예정이 표시돼요 (보유 탭 → 종목).</p>`:""}</section>`;
 }
 function viewHome(){
@@ -280,11 +280,15 @@ function assetView(){
     </svg>${tabs}
     <p class="note">매수 기록과 배당 입금일의 주가로 이은 추정선이에요. 총 수익 = 평가손익 + 받은 배당.</p></section>`;
 }
-// 자산 그래프 옆: 종목별 수익 (넓은 화면의 빈 공간도 채워요)
+// 종목별 수익: 주가 손익만 / 받은 배당까지 합친 수익 (두 가지를 골라 봐요)
+let profitDiv = false;
 function assetSide(){
-  const rows=portRows().filter(r=>r.plp!=null).sort((a,b)=>b.plp-a.plp); if(rows.length<1) return "";
-  const mx=Math.max(...rows.map(r=>Math.abs(r.plp)),1);
-  return `<section class="card sidecard"><h2>종목별 수익 <small>평가손익 기준</small></h2>${rows.slice(0,10).map(r=>`<div class="lrow"><div class="t" style="min-width:64px">${esc(r.h.ticker)}</div><div class="bw"><i class="${r.plp>=0?"p":"n"}" style="width:${(Math.abs(r.plp)/mx*100).toFixed(0)}%"></i></div><div class="r"><div class="p num ${cls(r.plp)}" style="font-size:15px">${pct(r.plp,1)}</div><div class="s num">${wonS(r.pl)}</div></div></div>`).join("")}</section>`;
+  const rows=portRows().filter(r=>r.pl!=null&&r.r.cost>0); if(!rows.length) return "";
+  const val=r=>profitDiv?r.pl+r.d:r.pl, pc=r=>val(r)/r.r.cost*100;
+  rows.sort((a,b)=>pc(b)-pc(a));
+  const mx=Math.max(...rows.map(r=>Math.abs(pc(r))),1), tot=rows.reduce((a,r)=>a+val(r),0);
+  const seg=`<div class="seg" id="psseg" style="margin-bottom:6px">${[[0,"주가 손익"],[1,"배당 포함"]].map(([k,l])=>`<button data-p="${k}" aria-pressed="${(+profitDiv)===k}">${l}</button>`).join("")}</div>`;
+  return `<section class="card sidecard"><h2>종목별 수익 <small>합계 <b class="num ${cls(tot)}">${wonS(tot)}</b></small></h2>${seg}${rows.slice(0,12).map(r=>`<div class="lrow"><div class="t" style="min-width:64px">${esc(r.h.ticker)}</div><div class="bw"><i class="${val(r)>=0?"p":"n"}" style="width:${(Math.abs(pc(r))/mx*100).toFixed(0)}%"></i></div><div class="r"><div class="p num ${cls(val(r))}" style="font-size:15px">${pct(pc(r),1)}</div><div class="s num">${wonS(val(r))}</div></div></div>`).join("")}</section>`;
 }
 function assetHead(p,isNow){
   const pl=p.val-p.cost, tot=pl+p.div, tp=p.cost>0?tot/p.cost*100:0, dt=parseD(p.D);
@@ -381,11 +385,11 @@ create policy "own delete" on public.app_state for delete to authenticated using
   <p class="muted" style="text-align:center;font-size:12px;margin:4px 0 16px">v${APP_VERSION} · ${APP_DATE}${justUpdated?` · <span class="up">방금 업데이트 (v${esc(prevVer)} → v${APP_VERSION})</span>`:""}<br>${APP_NOTES}</p>`;
 }
 
-const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"chart",set:"set"};
+const NAVOF = {home:"home",hold:"hold",div:"div",log:"div",plan:"div",chart:"hold",set:"set"};
 function render(){
   const v=$("#view");
-  v.className = "tab-"+tab+(tab==="log"?" one":"")+(tab==="hold"?" colw":"");
-  v.innerHTML = tab==="home"?viewHome():tab==="log"?divHead()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?viewChart():tab==="plan"?divHead()+divSeg("plan")+viewPlan():viewSet();
+  v.className = "tab-"+tab+(tab==="log"?" one":"")+(tab==="hold"&&holdMode!=="asset"?" colw":"");
+  v.innerHTML = tab==="home"?viewHome():tab==="log"?divHead()+divSeg("log")+viewLog():tab==="hold"?viewHold():tab==="div"?viewDiv():tab==="chart"?(tab="hold",holdMode="asset",viewHold()):tab==="plan"?divHead()+divSeg("plan")+viewPlan():viewSet();
   const nv=NAVOF[tab]||tab;
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nv));
   $("#fab").hidden = !(tab==="home"||tab==="div"||tab==="log");
