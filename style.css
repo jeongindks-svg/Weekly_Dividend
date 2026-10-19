@@ -667,3 +667,13 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
 .yprev{font-size:12px;color:var(--muted);margin-top:1px}
 .yprev .up,.yprev .down{font-weight:700}
 .mrow{grid-template-columns:repeat(2,1fr)}
+
+/* v10.1: 매매일지·배당 간소화 */
+.jhead{display:flex;gap:10px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+.jhead .seg{flex:1 1 150px}
+.jb{display:flex;gap:8px}.jb button{padding:10px 14px}
+.mth{font-size:12.5px;font-weight:700;color:var(--muted);padding:14px 0 2px;border-top:1px solid var(--rule)}
+.mth:first-child{border-top:none;padding-top:10px}
+.mth+.lrow{border-top:none}
+.jtbl tr.cur td{background:var(--blue-soft)}
+.jtbl tr.cur td:first-child{border-radius:10px 0 0 10px}.jtbl tr.cur td:last-child{border-radius:0 10px 10px 0}
