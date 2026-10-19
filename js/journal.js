@@ -4,8 +4,8 @@
 // 매수 기록은 종목의 lots(매수 기록)에서, 매도는 S.trades에서 가져와요.
 // 매도하면 그 종목의 lots에 음수 수량(sell:true)을 한 줄 넣어서 수량·원금 계산이 그대로 맞아요(평균단가법).
 
-let holdMode = "list", jFilter = "all", jView = "month";
-const holdSeg = a => `<div class="pills" id="hmode">${[["list","보유"],["asset","자산"],["mix","비중"],["trade","매매일지"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
+let holdMode = "asset", jFilter = "all", jView = "month";
+const holdSeg = a => `<div class="pills" id="hmode">${[["asset","자산"],["mix","비중"],["trade","매매일지"]].map(([k,l])=>`<button data-hm="${k}" aria-pressed="${a===k}">${l}</button>`).join("")}</div>`;
 const groupYm = (items, fn) => { const m=new Map(); for(const x of items){ const k=fn(x).slice(0,7); if(!m.has(k)) m.set(k,[]); m.get(k).push(x); } return [...m]; };
 const ymTitle = k => { const [y,m]=k.split("-"); return `${y}년 ${+m}월`; };
 
@@ -52,25 +52,16 @@ const monthShort=k=>{ const [y,m]=k.split("-"); return `${+m}월`+(+y!==new Date
 function viewTrades(){
   const items=journalItems();
   if(!items.length) return emptyCard("TRADE JOURNAL","언제, 얼마나 샀는지<br>기록해 보세요","매수는 종목 편집의 매수 기록에서, 매도는 여기서 기록해요. 매도하면 실현손익이 자동 계산돼요.",`<button class="primary bigbtn" id="addBuy">+ 매수 기록</button>`,SAMPLE_ROWS);
-  const R=realizedSum(), now=new Date(), curYm=ymOf(now.getFullYear(),now.getMonth());
-  const sum=R.n?`<div class="jsum"><span>누적 실현손익 <b class="num ${cls(R.all)}">${wonS(R.all)}</b></span><span>올해 <b class="num ${cls(R.yr)}">${wonS(R.yr)}</b></span></div>`:"";
-  const btns=`<div class="btnrow jbtn"><button id="addBuy">+ 매수</button><button class="primary" id="addSell">+ 매도</button></div>`;
-  const view=`<div class="seg" id="jview">${[["month","월별"],["day","일별"]].map(([k,l])=>`<button data-v="${k}" aria-pressed="${jView===k}">${l}</button>`).join("")}</div>`;
-  if(jView==="day"){
-    const list=items.filter(x=>jFilter==="all"||x.k===jFilter), DW="일월화수목금토";
-    const flt=`<div class="seg" id="jseg">${[["all","전체"],["buy","매수"],["sell","매도"]].map(([k,l])=>`<button data-f="${k}" aria-pressed="${jFilter===k}">${l}</button>`).join("")}</div>`;
-    return `<div class="jctl">${view}${flt}</div>${sum}${btns}
-      ${list.length?groupYm(list,x=>x.date).map(([k,rows])=>`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">${ymTitle(k)}</h2>${groupDay(rows).map(([d,rs])=>`<div class="dayh">${fmtD(parseD(d))} (${DW[parseD(d).getDay()]})</div>${rs.map(journalRow).join("")}`).join("")}</section>`).join(""):`<section class="card"><div class="empty">해당하는 기록이 없어요</div></section>`}`;
-  }
-  // 월별: 이번 달은 종목별로 자세히, 지난달은 통계표(월 · 매수 · 매도 · 비중)
-  const months=groupYm(items,x=>x.date), stat=rows=>({bk:rows.filter(x=>x.k==="buy").reduce((a,x)=>a+x.krw,0),sk:rows.filter(x=>x.k==="sell").reduce((a,x)=>a+x.krw,0),real:rows.reduce((a,x)=>a+(x.k==="sell"?x.real:0),0)});
-  const cur=months.find(([k])=>k===curYm), past=months.filter(([k])=>k!==curYm);
+  const R=realizedSum(), curYm=ymOf(new Date().getFullYear(),new Date().getMonth());
+  const head=`<div class="jhead"><div class="seg" id="jview">${[["month","월별"],["day","일별"]].map(([k,l])=>`<button data-v="${k}" aria-pressed="${jView===k}">${l}</button>`).join("")}</div><div class="jb"><button id="addBuy">+ 매수</button><button class="primary" id="addSell">+ 매도</button></div></div>`;
+  const sum=R.n?`<div class="jsum"><span>실현손익 누적 <b class="num ${cls(R.all)}">${wonS(R.all)}</b></span><span>올해 <b class="num ${cls(R.yr)}">${wonS(R.yr)}</b></span></div>`:"";
+  const months=groupYm(items,x=>x.date);
+  if(jView==="day") return head+sum+`<section class="card" style="padding:4px 16px">${months.map(([k,rows])=>`<div class="mth">${ymTitle(k)}</div>${rows.map(journalRow).join("")}`).join("")}</section>`;
+  const stat=rows=>({bk:rows.filter(x=>x.k==="buy").reduce((a,x)=>a+x.krw,0),sk:rows.filter(x=>x.k==="sell").reduce((a,x)=>a+x.krw,0),real:rows.reduce((a,x)=>a+(x.k==="sell"?x.real:0),0)});
   const totB=months.reduce((a,[,r])=>a+stat(r).bk,0)||1;
-  const curCard=cur?(()=>{ const s=stat(cur[1]); return `<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">이번 달 <small>${s.bk?`매수 ${won(s.bk)}`:""}${s.bk&&s.sk?" · ":""}${s.sk?`매도 ${won(s.sk)}`:""}</small></h2>${tickerRows(cur[1]).map(o=>monthRow(curYm,o)).join("")}</section>`; })():"";
-  const tbl=past.length?`<section class="card" style="padding:14px 6px 6px"><h2 style="padding:0 12px">월별 통계 <small>매수 금액 기준 비중</small></h2><div class="tbl jtbl"><table><thead><tr><th class="l">월</th><th>매수</th><th>매도</th><th>비중</th></tr></thead><tbody>${past.map(([k,rows])=>{ const s=stat(rows), p=s.bk/totB*100;
-    return `<tr data-jmonth="${k}"><td class="l"><b>${monthShort(k)}</b>${s.sk?`<div class="s ${cls(s.real)}">실현 ${wonS(s.real)}</div>`:""}</td><td>${s.bk?won(s.bk):"-"}</td><td>${s.sk?won(s.sk):"-"}</td><td class="shc"><span class="shr"><i style="width:${Math.min(100,p).toFixed(0)}%"></i></span><small>${p.toFixed(0)}%</small></td></tr>`; }).join("")}</tbody></table></div></section>`:"";
-  return `<div class="jctl">${view}</div>${sum}${btns}${curCard}${tbl}
-    <p class="muted full" style="font-size:12px;margin:0 2px 12px">달을 누르면 종목별 내역이 열려요. 매도하면 평균 매수 단가 기준으로 실현손익을 계산해요(수수료·세금 제외).</p>`;
+  return head+sum+`<section class="card" style="padding:12px 6px 6px"><div class="tbl jtbl"><table><thead><tr><th class="l">월</th><th>매수</th><th>매도</th><th>비중</th></tr></thead><tbody>${months.map(([k,rows])=>{ const s=stat(rows), p=s.bk/totB*100;
+    return `<tr data-jmonth="${k}"${k===curYm?' class="cur"':""}><td class="l"><b>${k===curYm?"이번 달":monthShort(k)}</b></td><td>${s.bk?won(s.bk):"-"}</td><td>${s.sk?won(s.sk):"-"}${s.sk?`<div class="s ${cls(s.real)}">${wonS(s.real)}</div>`:""}</td><td class="shc"><span class="shr"><i style="width:${Math.min(100,p).toFixed(0)}%"></i></span><small>${p.toFixed(0)}%</small></td></tr>`; }).join("")}</tbody></table></div></section>
+    <p class="muted" style="font-size:12px;margin:0 4px 12px">달을 누르면 종목별 내역이 열려요.</p>`;
 }
 function journalMonthSheet(ym){
   const rows=journalItems().filter(x=>x.date.startsWith(ym));
