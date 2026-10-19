@@ -18,11 +18,11 @@ function bindView(){
   v.querySelectorAll("[data-goto]").forEach(b=>b.onclick=()=>{ tab=b.dataset.goto; if(b.dataset.dm) divMode=b.dataset.dm; render(); window.scrollTo(0,0); });
   on("#addHold2",()=>holdSheet()); on("#goCal",()=>monthCalSheet());
   segOf("#compseg",b=>holdComp=b.dataset.m); on("#calcInfo",calcInfoSheet);
+  const pss=v.querySelector("#psseg"); if(pss) pss.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ profitDiv=b.dataset.p==="1"; render(); } };
   const tr=v.querySelector("#toprange"); if(tr) tr.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ topRange=b.dataset.r; render(); } };
   const wsg=v.querySelector("#wdseg"); if(wsg) wsg.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ wdRange=+b.dataset.n; render(); } };
-  const ga=v.querySelector("[data-goasset]"); if(ga) ga.onclick=()=>{ tab="chart"; chartMode="asset"; render(); window.scrollTo(0,0); };
+  const ga=v.querySelector("[data-goasset]"); if(ga) ga.onclick=()=>{ tab="hold"; holdMode="asset"; render(); window.scrollTo(0,0); };
   const hss=v.querySelector("#hsortsel"); if(hss) hss.onchange=()=>{ holdSort=hss.value; render(); };
-  const gm=v.querySelector("[data-gomix]"); if(gm) gm.onclick=()=>{ tab="chart"; chartMode="mix"; mixDim="ticker"; render(); window.scrollTo(0,0); };
   const hq=v.querySelector("#hq"); if(hq) hq.oninput=()=>{ holdQ=hq.value; const p=hq.selectionStart; render(); const n=$("#hq"); if(n){ n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} } };
   const hg=v.querySelector("#hgrp"); if(hg) hg.onchange=()=>{ holdGroup=hg.value; render(); };
   on("#hcmp",()=>{ holdCompact=!holdCompact; render(); });
@@ -66,7 +66,6 @@ function bindView(){
     const reset=()=>{ head.innerHTML=assetHead(A.pts[A.pts.length-1],true); cx.setAttribute("visibility","hidden"); cd.setAttribute("visibility","hidden"); };
     asv.addEventListener("pointermove",show); asv.addEventListener("pointerdown",show); asv.addEventListener("pointerleave",reset); asv.addEventListener("pointerup",ev=>{ if(ev.pointerType!=="mouse") setTimeout(reset,1500); }); }
   const rs=v.querySelector("#rseg"); if(rs) rs.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ rateMode=b.dataset.m; render(); } };
-  const cs=v.querySelector("#cseg"); if(cs) cs.onclick=ev=>{ const b=ev.target.closest("button"); if(b){ chartMode=b.dataset.m; render(); } };
   on("#goGoal",()=>{ tab="set"; render(); setTimeout(()=>{ const g=$("#sgoal"); g&&g.focus(); },50); });
   const sa=v.querySelector("#sauto"); if(sa) sa.onchange=()=>{ $("#manualFx").hidden=sa.checked; };
   on("#fxRef",async()=>{ toast("환율을 불러오는 중…"); const r=await getFx(todayStr()); if(r.src==="offline") toast("인터넷 연결을 확인해 주세요"); else { S.settings.fx=r.rate; S.settings.fxDate=todayStr(); touchSettings(); persist(); render(); toast("환율을 갱신했어요"); } });

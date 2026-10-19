@@ -666,3 +666,4 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
 .wfh{margin-bottom:4px}
 .yprev{font-size:12px;color:var(--muted);margin-top:1px}
 .yprev .up,.yprev .down{font-weight:700}
+.mrow{grid-template-columns:repeat(2,1fr)}
