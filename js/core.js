@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="10.1", APP_DATE="2026-10-16", APP_NOTES="자산 아래에 보유 종목, 비중은 종목만, 매매일지·배당 간소화";
+const APP_VERSION="10.2", APP_DATE="2026-10-16", APP_NOTES="보유 종목에 누적 배당률(받은 배당률 합산) 표시";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
