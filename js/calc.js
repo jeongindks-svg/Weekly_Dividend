@@ -181,7 +181,7 @@ function rateView(){
     const items=Object.keys(byT).sort((x,y)=>tot2[y]-tot2[x]).map(t=>{ const es=byT[t].sort((x,y)=>y.date.localeCompare(x.date)), h=S.holdings.find(x=>x.ticker===t), c=h?holdCalc(h):null, kr=es[0].currency==="KRW";
       const pc=es.map(pctOf), sum=pc.reduce((a,v)=>a+(v||0),0), has=pc.some(v=>v!=null), avgTxt=c&&(kr?c.aK:c.aU)>0?(kr?won(c.aK):usd(c.aU)):"평단 미입력";
       const rows=es.slice(0,26).map((e,i)=>`<div class="lrow"><div><div class="t">${fmtD(parseD(e.date))}</div><div class="s">${kr?won(e.perShare):"$"+fmtPs(e.perShare)}</div></div><div class="r"><div class="p" style="font-size:15px">${pc[i]!=null?p2(pc[i]):"-"}</div></div></div>`).join("");
-      return `<details class="tkd"><summary><div><div class="t">${esc(t)}</div><div class="s">매입가 ${avgTxt} · 받은 배당 ${won(tot2[t])}</div></div><div class="r"><div class="p">${has?p2(sum):"-"}</div><div class="s">누적</div></div></summary><div class="tkb">${rows}</div></details>`; }).join("");
+      return `<details class="tkd"><summary><div><div class="t">${esc(t)}</div><div class="s">매입가 ${avgTxt} · 받은 배당 ${won(tot2[t])}</div></div><div class="r"><div class="p">${c&&c.cost>0?p2(tot2[t]/c.cost*100):(has?p2(sum):"-")}</div><div class="s">누적</div></div></summary><div class="tkb">${rows}</div></details>`; }).join("");
     body=`<section class="card" style="padding:4px 16px"><h2 style="padding-top:12px">종목별 배당률 <small>주당 배당 ÷ 산 가격(평단)</small></h2>${items}</section>`;
   }
   return hero+seg+body+`<p class="muted" style="font-size:12px;margin:0 2px 12px">원금은 보유 탭에 넣은 평단 × 수량의 합이에요(평단이 없으면 계획 탭의 월 원금). 종목별은 산 가격 대비라 달러 종목은 달러 평단 기준이에요. 세전/세후는 계획 탭에서 바꿔요.</p>`;

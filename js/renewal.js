@@ -122,7 +122,7 @@ function holdingsCard(){
   const rows=portRows(), tot=rows.reduce((a,r)=>a+r.v,0)||1, many=rows.length>=6;
   const val=r=>r.pl==null?null:(profitDiv?r.pl+r.d:r.pl), pc=r=>{ const v=val(r); return v!=null&&r.r.cost>0?v/r.r.cost*100:null; };
   // 누적 배당률: 지금까지 받은 배당 한 번 한 번의 원금 대비 배당률(세후)을 모두 더한 값
-  const cumY=r=>{ let sum=0,n=0; for(const e of S.entries) if(e.ticker===r.h.ticker){ const y=yoc(e); if(y!=null){ sum+=y; n++; } } return n?sum:null; };
+  const cumY=r=>r.r.cost>0&&isDivStock(r.h)?r.d/r.r.cost*100:null; // 누적 배당률 = 지금까지 받은 배당금(세후) ÷ 현재 투자원금
   const q=holdQ.trim().toLowerCase(), view=rows.filter(r=>!q||r.h.ticker.toLowerCase().includes(q));
   const key={weight:r=>r.weight,plp:pc,yld:cumY,v:r=>r.v}[holdSort]||(r=>r.weight);
   view.sort((a,b)=>(key(b)??-1e18)-(key(a)??-1e18));
