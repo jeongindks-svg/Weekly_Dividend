@@ -677,3 +677,10 @@ section.mrow,#view>.mrow{background:var(--paper);border-radius:20px;box-shadow:v
 .mth+.lrow{border-top:none}
 .jtbl tr.cur td{background:var(--blue-soft)}
 .jtbl tr.cur td:first-child{border-radius:10px 0 0 10px}.jtbl tr.cur td:last-child{border-radius:0 10px 10px 0}
+.lotsd{background:var(--cell0);border-radius:12px;padding:0 14px}
+.lotsd summary{list-style:none;display:flex;justify-content:space-between;gap:10px;padding:12px 0;cursor:pointer;font-weight:600}
+.lotsd summary::-webkit-details-marker{display:none}
+.lotsd summary::after{content:"›";color:var(--muted);transition:transform .15s;margin-left:6px}
+.lotsd[open] summary::after{transform:rotate(90deg)}
+.lotsd #hlots{padding-bottom:6px}
+.src{min-height:0}

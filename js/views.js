@@ -73,10 +73,9 @@ function weekDaysCard(){
   const tot=days.reduce((a,x)=>a+x.recv,0), left=days.reduce((a,x)=>a+(x.D>=today?x.expAmt:0),0);
   const cell=x=>{ const gt=[...new Set(x.got.map(e=>e.ticker))], all=[...gt.map(t=>({t,k:"g"})),...x.exp.map(o=>({t:o.h.ticker,k:"e"}))];
     const chips=all.slice(0,2).map(c=>`<i class="${c.k}">${tkb(c.t)}</i>`).join("")+(all.length>2?`<i class="m">+${all.length-2}</i>`:"");
-    return `<button class="wd${x.D===today?" today":""}${x.D>today?" fut":""}" data-day="${x.D}" aria-label="${fmtD(x.d)} ${DOWN[x.dow]}요일"><span class="dw">${DOWN[x.dow]}</span><span class="dn">${x.d.getDate()}</span><span class="da${x.recv?" got":""}">${x.recv?kfmt(x.recv):(x.expAmt?"~"+kfmt(x.expAmt):"")}</span><span class="dt">${chips}</span></button>`; };
+    return `<button class="wd${x.D===today?" today":""}${x.D>today?" fut":""}" data-day="${x.D}" aria-label="${fmtD(x.d)} ${DOWN[x.dow]}요일"><span class="dw">${DOWN[x.dow]}</span><span class="dn">${x.d.getDate()}</span><span class="da${x.recv?" got":""}">${x.recv?kfmt(x.recv):""}</span><span class="dt">${chips}</span></button>`; };
   return `<section class="card wkcard"><h2>이번 주 일정 <small>${fmtD(days[0].d)} – ${fmtD(days[6].d)}</small></h2>
     <div class="wdays">${days.map(cell).join("")}</div>
-    ${left>0?`<div class="wsum"><span>남은 예정 <b class="num">~${won(left)}</b></span></div>`:""}
     ${noDay.length?`<p class="muted" style="font-size:12px;margin:8px 0 0">${noDay.slice(0,3).map(h=>esc(h.ticker)).join(", ")}${noDay.length>3?" 외":""} 종목의 지급 요일을 정하면 입금 예정이 표시돼요 (보유 탭 → 종목).</p>`:""}</section>`;
 }
 function viewHome(){

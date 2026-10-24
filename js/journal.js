@@ -162,9 +162,9 @@ function monthCalSheet(ym){
   for(let d=1; d<=n; d++){ const D=`${ym}-${String(d).padStart(2,"0")}`, x=dayInfo(D), ev=dayEvents(D);
     recv+=x.recv; if(D>=today) left+=x.expAmt;
     const dots=[...new Set(ev.map(e=>e.k))].map(k=>`<i class="${k}"></i>`).join("");
-    cells+=`<button class="cday${D===today?" today":""}${x.recv?" got":""}" data-cd="${D}" aria-label="${M}월 ${d}일"><b>${d}</b><span class="ca${x.recv?" r":""}">${x.recv?kfmt(x.recv):(x.expAmt&&D>=today?"~"+kfmt(x.expAmt):"")}</span><span class="cm">${dots}</span></button>`; }
+    cells+=`<button class="cday${D===today?" today":""}${x.recv?" got":""}" data-cd="${D}" aria-label="${M}월 ${d}일"><b>${d}</b><span class="ca${x.recv?" r":""}">${x.recv?kfmt(x.recv):""}</span><span class="cm">${dots}</span></button>`; }
   openSheet(`<div class="calnav"><button type="button" class="small ghost" id="cprev" aria-label="이전 달">‹</button><h3 style="margin:0">${Y}년 ${M}월</h3><button type="button" class="small ghost" id="cnext" aria-label="다음 달">›</button></div>
-    <div class="wsum" style="margin:6px 0 10px"><span>받은 배당 <b class="num">${won(recv)}</b></span>${left>0?`<span>남은 예정 <b class="num">~${won(left)}</b></span>`:""}</div>
+    <div class="wsum" style="margin:6px 0 10px"><span>받은 배당 <b class="num">${won(recv)}</b></span></div>
     <div class="calgrid">${[...DOWN].map((c,i)=>`<span class="cdw${i===0?" su":""}">${c}</span>`).join("")}${cells}</div>
     <div class="legend" style="margin-top:10px"><span><i class="ld buy"></i>매수</span><span><i class="ld sell"></i>매도</span><span class="muted">날짜를 누르면 내역이 보여요</span></div>
     <div class="btnrow" style="margin-top:12px"><button class="ghost" id="ccx">닫기</button><button class="primary" id="cgo">배당 기록하기</button></div>`,()=>{
