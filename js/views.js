@@ -26,11 +26,14 @@ function alertCard(){
   const rows=[];
   for(const h of liveHoldings().filter(h=>(h.freq||"주배당")==="주배당")){
     const es=S.entries.filter(e=>e.ticker===h.ticker).sort((a,c)=>c.date.localeCompare(a.date)||(c.created||0)-(a.created||0)); if(!es.length) continue;
-    const y1=yoc(es[0]), ps=es.slice(1,5).map(yoc).filter(x=>x!=null), y0=ps.length?ps.reduce((a,x)=>a+x,0)/ps.length:null;
-    rows.push({t:h.ticker,y1,y0,d:y1!=null&&y0!=null?y1-y0:null}); }
+    const y1=yoc(es[0]), ps=es.slice(1,5).map(yoc).filter(x=>x!=null), y0=ps.length?ps.reduce((a,x)=>a+x,0)/ps.length:null, pr=curPrice(h);
+    // 현재 주가 대비: 이번(최근) 배당 한 번의 주당 금액(세후) ÷ 지금 주가
+    const yp=pr>0?es[0].perShare*(1-(+es[0].taxRate||0)/100)/pr*100:null;
+    rows.push({t:h.ticker,y1,y0,yp,d:y1!=null&&y0!=null?y1-y0:null}); }
   if(!rows.length) return "";
   rows.sort((a,b)=>(b.y1??-1)-(a.y1??-1));
-  return `<section class="card"><h2>주배당률 <small>원금 대비 · 세후</small></h2>${rows.map(r=>`<div class="lrow"><div class="t">${esc(r.t)}</div><div class="r">${r.y1==null?`<span class="muted" style="font-size:13px">평단을 넣어 주세요</span>`:`<div class="p num" style="font-size:20px;letter-spacing:-.02em">${r.y1.toFixed(2)}%</div>${r.y0!=null?`<div class="s num yprev">이전 ${r.y0.toFixed(2)}%${r.d!=null&&Math.abs(r.d)>=0.005?` <span class="${r.d>0?"up":"down"}">${r.d>0?"▲":"▼"} ${Math.abs(r.d).toFixed(2)}%p</span>`:""}</div>`:""}`}</div></div>`).join("")}</section>`;
+  const blk=(lab,val,sub)=>`<div class="yb"><div class="yl">${lab}</div><div class="p num">${val!=null?val.toFixed(2)+"%":"-"}</div>${sub||""}</div>`;
+  return `<section class="card"><h2>이번 주 배당률 <small>1회 배당 · 세후</small></h2>${rows.map(r=>`<div class="lrow"><div class="t">${esc(r.t)}</div><div class="yrow">${blk("원금 대비",r.y1,r.y0!=null?`<div class="s num yprev">이전 ${r.y0.toFixed(2)}%${r.d!=null&&Math.abs(r.d)>=0.005?` <span class="${r.d>0?"up":"down"}">${r.d>0?"▲":"▼"} ${Math.abs(r.d).toFixed(2)}%p</span>`:""}</div>`:"")}${blk("주가 대비",r.yp,r.yp==null?`<div class="s yprev">현재가 필요</div>`:"")}</div></div>`).join("")}</section>`;
 }
 // ---- 주차별(달력 느낌): 금액이 큰 종목 3개 + 기타 ----
 function weekInfo(es,b){ const by={}; let total=0; for(const e of es){ const a=amtOf(e,b); by[e.ticker]=(by[e.ticker]||0)+a; total+=a; }
