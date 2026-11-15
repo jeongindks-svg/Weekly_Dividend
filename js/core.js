@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="11.2", APP_DATE="2026-10-16", APP_NOTES="이번 주 배당률: 원금 대비와 현재 주가 대비를 따로 표시";
+const APP_VERSION="11.3", APP_DATE="2026-10-16", APP_NOTES="보유 종목 목록 깨짐 수정";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";
