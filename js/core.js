@@ -6,7 +6,7 @@ const DEFAULT = {
   holdings:[], entries:[], plan:[], invest:[], trades:[], cash:[], deleted:[], fxCache:{}, priceCache:{}, quotes:{}
 };
 let S = clone(DEFAULT);
-const APP_VERSION="11.0", APP_DATE="2026-10-16", APP_NOTES="일정에서 예상 금액 제거, 배당 기록 자동 불러오기, 매수 기록 접기·환율 자동";
+const APP_VERSION="11.1", APP_DATE="2026-10-16", APP_NOTES="보유 종목에 현재가 배당률 따로 표시";
 let prevVer=null; try{ prevVer=localStorage.getItem("jbd-ver"); localStorage.setItem("jbd-ver",APP_VERSION); }catch(e){}
 const justUpdated = prevVer!==null && prevVer!==APP_VERSION;
 let rateMode = "week";

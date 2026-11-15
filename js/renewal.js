@@ -124,12 +124,12 @@ function holdingsCard(){
   // 누적 배당률: 지금까지 받은 배당 한 번 한 번의 원금 대비 배당률(세후)을 모두 더한 값
   const cumY=r=>r.r.cost>0&&isDivStock(r.h)?r.d/r.r.cost*100:null; // 누적 배당률 = 지금까지 받은 배당금(세후) ÷ 현재 투자원금
   const q=holdQ.trim().toLowerCase(), view=rows.filter(r=>!q||r.h.ticker.toLowerCase().includes(q));
-  const key={weight:r=>r.weight,plp:pc,yld:cumY,v:r=>r.v}[holdSort]||(r=>r.weight);
+  const key={weight:r=>r.weight,plp:pc,yld:cumY,cur:r=>r.yld,v:r=>r.v}[holdSort]||(r=>r.weight);
   view.sort((a,b)=>(key(b)??-1e18)-(key(a)??-1e18));
   const seg=`<div class="seg" id="psseg" style="margin:0 0 10px">${[[0,"주가 손익"],[1,"배당 포함"]].map(([k,l])=>`<button data-p="${k}" aria-pressed="${(+profitDiv)===k}">${l}</button>`).join("")}</div>`;
-  const ctl=many?`<div class="hctl"><input id="hq" type="search" value="${esc(holdQ)}" placeholder="종목 검색" autocomplete="off" aria-label="종목 검색"><select id="hsortsel" aria-label="정렬">${[["weight","비중순"],["plp","수익률순"],["yld","누적 배당률순"],["v","평가금순"]].map(([k,l])=>`<option value="${k}" ${holdSort===k?"selected":""}>${l}</option>`).join("")}</select></div>`:"";
+  const ctl=many?`<div class="hctl"><input id="hq" type="search" value="${esc(holdQ)}" placeholder="종목 검색" autocomplete="off" aria-label="종목 검색"><select id="hsortsel" aria-label="정렬">${[["weight","비중순"],["plp","수익률순"],["yld","누적 배당률순"],["cur","현재가 배당률순"],["v","평가금순"]].map(([k,l])=>`<option value="${k}" ${holdSort===k?"selected":""}>${l}</option>`).join("")}</select></div>`:"";
   const ftag=r=>`<span class="ftag">${r.freq==="배당 없음"?"일반":r.freq.replace("배당","")}</span>`;
-  const row=r=>{ const p=pc(r), cy=cumY(r); return `<div class="hl" data-hold="${r.h.id}"><div class="m"><div class="t">${esc(r.h.ticker)}${ftag(r)}</div><div class="s num">${qty(r.h.shares)}주 · 비중 ${r.weight.toFixed(0)}%${cy!=null?` · 누적 배당률 ${cy.toFixed(1)}%`:""}</div></div>
+  const row=r=>{ const p=pc(r), cy=cumY(r); return `<div class="hl" data-hold="${r.h.id}"><div class="m"><div class="t">${esc(r.h.ticker)}${ftag(r)}</div><div class="s num">${qty(r.h.shares)}주 · 비중 ${r.weight.toFixed(0)}%</div>${cy!=null||r.yld!=null?`<div class="s num">누적 배당률 ${cy!=null?cy.toFixed(1)+"%":"-"} · 현재가 배당률 ${r.yld!=null?r.yld.toFixed(1)+"%":"-"}</div>`:""}</div>
     <div class="rt"><div class="t num">${won(r.v)}</div>${p!=null?`<div class="s num ${cls(p)}">${pct(p,1)}</div>`:`<div class="s">${r.est?"매입금액":""}</div>`}</div></div>`; };
   const P=portfolio(), note=P.missing?`가격이 없는 종목 ${P.missing}개는 매입금액으로 표시돼요.`:!S.settings.tdKey?"설정에서 주가 키를 넣으면 현재가가 자동으로 들어와요.":"";
   return `<section class="card"><div class="listhead"><h2 style="margin:0">보유 종목 <small>${rows.length}개</small></h2><div style="display:flex;gap:6px"><button class="small ghost" id="refQ" ${S.settings.tdKey?"":"disabled"}>새로고침</button><button class="small primary" id="addHold">+ 종목</button></div></div>
